@@ -263,6 +263,44 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIn("project/.apex", result["hookSpecificOutput"]["additionalContext"])
         self.assertIsNone(self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="x"))
 
+    def prompt_then_edit(self, prompt, target=None, cwd=None):
+        cwd = cwd or str(self.project)
+        result = self.hook("baseline", hook_event_name="UserPromptSubmit", prompt=prompt, cwd=cwd)
+        edit = self.hook("guard", hook_event_name="PreToolUse", tool_name="Write", cwd=cwd,
+                         tool_input={"file_path": target or str(self.project / "value.txt")})
+        return result, edit
+
+    def test_question_and_stop_messages_lock_edits_for_that_turn(self):
+        for prompt, kind in (("bu aynisi mi", "question"), ("Neden çalışmıyor?", "question"),
+                             ("dur", "stop"), ("ne yapıyorsun ya", "stop"), ("kafayı yiyeceğim", "stop")):
+            result, edit = self.prompt_then_edit(prompt)
+            self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
+            self.assertIn("blocked for this turn", result["hookSpecificOutput"]["additionalContext"], prompt)
+            expected = "wants you to stop" if kind == "stop" else "asked a question"
+            self.assertIn(expected, edit["hookSpecificOutput"]["permissionDecisionReason"], prompt)
+        for prompt in ("Evet, bu 4 maddeyi uygula.", "Bu dalı main'e birleştir.", "durumu düzelt"):
+            result, edit = self.prompt_then_edit(prompt)
+            self.assertIsNone(edit, prompt)
+
+    def test_turn_lock_applies_without_apex_settings_but_allows_plan_files(self):
+        outside = Path(self.temp.name) / "plain"
+        outside.mkdir()
+        home = Path(self.temp.name) / "home"
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="ne oldu?", cwd=str(outside))
+        denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit", cwd=str(outside),
+                           tool_input={"file_path": str(outside / "a.txt")})
+        self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Write", cwd=str(outside),
+                                    tool_input={"file_path": str(home / ".claude" / "plans" / "p.md")},
+                                    _home=str(home)))
+
+    def test_lock_context_is_kept_with_misplaced_controls_warning(self):
+        result = self.hook("baseline", hook_event_name="UserPromptSubmit",
+                           cwd=self.temp.name, prompt="neden boş?")
+        context = result["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("asked a question", context)
+        self.assertIn("NOT active", context)
+
     def test_guard_denies_only_the_verify_config(self):
         denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
                            tool_input={"file_path": ".apex/verify.json"})

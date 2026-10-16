@@ -11,14 +11,16 @@ Opt-in per project, both files at the project root and both changed only by the 
                      A turn that changed files cannot end until the apex-reviewer subagent has
                      compared exactly this working tree with the user's verbatim messages and
                      reported APEX-REVIEW: PASS.
-Projects without these files are untouched.
+Projects without these files are untouched, except for the turn lock below, which applies everywhere.
 
 Modes (first argument):
-  baseline  UserPromptSubmit: remember the working tree and record the user's message.
+  baseline  UserPromptSubmit: remember the working tree and record the user's message. A message
+            that asks a question or says stop (including anger) locks file edits for that turn.
   stop      Stop / SubagentStop: block if files outside the scope changed this turn, then
             run the verify command, then require a passing review; block on failure.
             For the apex-reviewer subagent it records the reviewer's verdict instead.
-  guard     PreToolUse (Write|Edit): refuse edits to `.apex/` configs and outside the scope.
+  guard     PreToolUse (Write|Edit): refuse edits during a locked turn, to `.apex/` configs, and
+            outside the scope.
 """
 
 import fnmatch
@@ -179,6 +181,11 @@ def emit(payload):
     for key, value in payload.items():
         if key == "systemMessage" and key in OUTPUT:
             OUTPUT[key] += "\n" + value
+        elif key == "hookSpecificOutput" and "additionalContext" in OUTPUT.get(key, {}):
+            context = OUTPUT[key]["additionalContext"]
+            OUTPUT[key] = {**OUTPUT[key], **value}
+            if "additionalContext" in value:
+                OUTPUT[key]["additionalContext"] = context + "\n\n" + value["additionalContext"]
         else:
             OUTPUT[key] = value
 
@@ -203,7 +210,61 @@ def nearby_controls(cwd, depth=2, limit=5):
     return found[:limit]
 
 
+FOLD = str.maketrans("ıİşŞğĞüÜöÖçÇâÂîÎ", "iissgguuoocCaAiI")
+STOP_WORDS = re.compile(
+    r"\b(dur|durdur|stop|yeter|bekle|salak|aptal|gerizekali|orospu|siktir|sikim|amk|aq|"
+    r"allah belani|ne yapiyorsun|ne yapiyosun|kafayi yi\w*)\b")
+QUESTION_WORDS = re.compile(
+    r"\b(mi|mu|misin|musun|miyim|muyum|miyiz|muyuz|midir|mudur|miydi|muydu|"
+    r"neden|niye|nasil|nerede|nereye|hangi|kim|why|how|what|where|which)\b")
+LOCK_REASONS = {
+    "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
+            "sentences say what state the work is in, then wait for the user's instruction.",
+    "question": "The user asked a question. Answer it directly in your first sentence; read files only "
+                "if the answer needs it. Do not start or continue any work; if work is needed, say "
+                "what and wait for the user's go-ahead.",
+}
+
+
+def classify(prompt):
+    """'stop', 'question' or None for a user message; a stop signal outranks a question."""
+    text = prompt.translate(FOLD).lower()
+    if STOP_WORDS.search(text):
+        return "stop"
+    if text.rstrip().endswith("?") or QUESTION_WORDS.search(text):
+        return "question"
+    return None
+
+
+def lock_path(session_id):
+    return STATE_DIR / f"{hashlib.sha256(session_id.encode()).hexdigest()[:24]}.lock"
+
+
+def set_turn_lock(event):
+    """Lock file edits for this turn when the user asked a question or said stop."""
+    prompt = event.get("prompt")
+    kind = classify(prompt) if isinstance(prompt, str) else None
+    path = lock_path(event.get("session_id", ""))
+    if kind is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(kind, encoding="utf-8")
+    emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
+                                 "additionalContext": f"Apex: {LOCK_REASONS[kind]} File edits are "
+                                                      "blocked for this turn."}})
+
+
+def turn_lock(session_id):
+    try:
+        kind = lock_path(session_id).read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return kind if kind in LOCK_REASONS else None
+
+
 def baseline(event):
+    set_turn_lock(event)
     cwd = event.get("cwd") or os.getcwd()
     root = find_root(cwd)
     if root is None:
@@ -436,6 +497,10 @@ def guard(event):
     cwd = Path(event.get("cwd") or os.getcwd())
     path = Path(target) if Path(target).is_absolute() else cwd / target
     path = path.resolve()
+    lock = turn_lock(event.get("session_id", ""))
+    if lock and not claude_own_file(path):
+        deny(f"File edits are blocked for this turn. {LOCK_REASONS[lock]}")
+        return
     if path.parts[-2:] in (CONFIG.parts, SCOPE.parts, REVIEW.parts):
         deny(f"{path.parts[-2]}/{path.name} holds the user's Apex rules; only the user changes it.")
         return
