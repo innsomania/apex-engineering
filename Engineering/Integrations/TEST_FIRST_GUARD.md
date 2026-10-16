@@ -11,7 +11,7 @@ to enforce the order.
 | Version observed | 1.7.0 |
 | License | MIT |
 | Decision mechanism | a model call, not parsing |
-| Status on this host | installed globally and enabled, but **enforcing nothing here** (no reporter) |
+| Status on this host | **installed, enabled and enforcing** (pytest reporter in place) |
 
 ## What it does
 
@@ -91,9 +91,24 @@ claude plugin disable tdd-guard@tdd-guard # or turn it off entirely
 
 Sending `tdd-guard off` as a message disables it for the session without uninstalling.
 
-**It enforces nothing in this repository.** Re-measured after signing in: editing an implementation
-file with no failing test was **allowed**. Its data directory holds only `modifications.json` and
-no test results, because it reads test state from a reporter and ships them for vitest, jest,
-storybook and pytest, while this suite is `unittest` with no pytest configuration. Installed,
-authenticated and running is therefore not the same as enforcing: making it real here means adding
-pytest and tdd-guard's reporter to this project's test setup.
+**It needs a reporter, or it enforces nothing.** With no test results it allowed implementation
+edits outright, because it reads test state from a reporter rather than running tests itself.
+`.venv` (uv, Python 3.14) now carries `pytest` and `tdd-guard-pytest`, and `pyproject.toml` points
+pytest at `Test/`. The suite stays plain `unittest` and `.apex/verify.json` still runs it through
+`python3 -m unittest`; feed the guard with:
+
+```bash
+.venv/bin/python -m pytest
+```
+
+Measured afterwards — evidence:
+[test-first-enforcing-2026-10-17.log](../../Test/evidence/test-first-enforcing-2026-10-17.log).
+
+| Edit | Decision |
+| --- | --- |
+| A constant changed while every test passes | allowed, a green-state change |
+| A test file adding one failing test | allowed |
+| A new implementation file with real logic and no failing test | **blocked** — "Premature implementation … no evidence of a failing test that required this code" |
+
+Stale results are the trap: the guard judges the last `pytest` run, so a run before the current
+change makes its answer wrong in both directions.

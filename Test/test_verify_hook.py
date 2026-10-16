@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -33,7 +34,8 @@ class VerifyHookTests(unittest.TestCase):
     def configure(self):
         (self.project / ".apex").mkdir(exist_ok=True)
         (self.project / ".apex" / "verify.json").write_text(
-            json.dumps({"command": f"{sys.executable} check.py", "timeout": 60}))
+            # The hook runs this through a shell, and the interpreter's path can contain spaces.
+            json.dumps({"command": f"{shlex.quote(sys.executable)} check.py", "timeout": 60}))
 
     def git_init(self):
         for args in (["init", "-q"], ["add", "-A"],

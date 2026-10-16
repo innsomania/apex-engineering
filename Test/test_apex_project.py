@@ -3,6 +3,7 @@
 import importlib.util
 import json
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -28,7 +29,9 @@ class ApexProjectTests(unittest.TestCase):
         return subprocess.run(["git", *args], cwd=self.root, capture_output=True, text=True, check=True).stdout
 
     def test_init_creates_repository_settings_and_baseline(self):
-        result = project.init(self.root, ["store/src/"], f"{sys.executable} -c 'print(1)'", 60, True,
+        # apex_project runs this through a shell; the interpreter's path can contain spaces.
+        verify = f"{shlex.quote(sys.executable)} -c 'print(1)'"
+        result = project.init(self.root, ["store/src/"], verify, 60, True,
                               ["row/", "store/node_modules/"])
         self.assertTrue(result["git_initialized"])
         self.assertEqual(result["verify_exit_code"], 0)

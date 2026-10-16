@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -26,8 +27,7 @@ MODEL_ARGS = ["-m", "gpt-6-luna", "-c", 'model_reasoning_effort="xhigh"',
               "-c", 'sandbox_mode="danger-full-access"', "-c", 'approval_policy="never"']
 
 
-FAKE_CODEX = f"""#!{sys.executable}
-import json
+FAKE_CODEX = """import json
 import os
 import sys
 import time
@@ -35,23 +35,23 @@ import time
 args = sys.argv[1:]
 prompt = sys.stdin.buffer.read().decode("utf-8")
 is_resume = len(args) > 1 and args[1] == "resume"
-record = {{"argv": args, "cwd": os.getcwd(), "prompt": prompt, "pid": os.getpid()}}
+record = {"argv": args, "cwd": os.getcwd(), "prompt": prompt, "pid": os.getpid()}
 with open(os.environ["FAKE_CODEX_LOG"], "a", encoding="utf-8") as stream:
     stream.write(json.dumps(record) + "\\n")
     stream.flush()
 mode = os.environ.get("FAKE_CODEX_MODE", "normal")
 if mode == "malformed":
     print("not-json")
-print(json.dumps({{"type": "thread.started", "thread_id": "thread-fixed"}}), flush=True)
-print(json.dumps({{"type": "turn.started"}}), flush=True)
-print(json.dumps({{"type": "item.completed", "item": {{"type": "agent_message", "text": "fake response"}}}}), flush=True)
+print(json.dumps({"type": "thread.started", "thread_id": "thread-fixed"}), flush=True)
+print(json.dumps({"type": "turn.started"}), flush=True)
+print(json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "fake response"}}), flush=True)
 if os.environ.get("FAKE_BLOCK_FIRST") == "1" and not is_resume:
     while not os.path.exists(os.environ["FAKE_CODEX_GATE"]):
         time.sleep(0.01)
 if mode == "exit":
     sys.exit(23)
 if mode != "missing_completion":
-    print(json.dumps({{"type": "turn.completed"}}), flush=True)
+    print(json.dumps({"type": "turn.completed"}), flush=True)
 """
 
 
@@ -89,8 +89,13 @@ class CodingBridgeTests(unittest.TestCase):
         self.ledger.initialize()
         self.fake_bin = self.root / "bin"
         self.fake_bin.mkdir()
+        # A shebang cannot carry an interpreter path with spaces, and sys.executable may
+        # have them, so a /bin/sh wrapper runs the body with the path quoted.
+        body = self.fake_bin / "codex_body.py"
+        body.write_text(FAKE_CODEX, encoding="utf-8")
         self.fake = self.fake_bin / "codex"
-        self.fake.write_text(FAKE_CODEX, encoding="utf-8")
+        self.fake.write_text(f'#!/bin/sh\nexec {shlex.quote(sys.executable)} {shlex.quote(str(body))} "$@"\n',
+                             encoding="utf-8")
         self.fake.chmod(0o755)
         self.log = self.root / "codex-calls.jsonl"
         self.gate = self.root / "release-initial-turn"
