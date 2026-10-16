@@ -11,7 +11,7 @@ key. This playbook covers the external guard selected for that gap.
 | License | MIT (repository and npm package agree) |
 | Runtime dependencies | none declared |
 | Transport | Claude Code `PreToolUse` hook, JSON on stdin |
-| Status on this host | verified in isolation; **not installed** |
+| Status on this host | **installed and verified** (plugin `cc-safety-net@cc-marketplace`) |
 
 ## What it does
 
@@ -58,16 +58,25 @@ stops the call, so they compose; neither weakens the other.
 
 ## Installation
 
-Not installed by `install.py`: it is third-party software with its own release cadence, and Apex
-does not install software on the user's machine without being asked. The user runs, from their own
-terminal:
+Installed on this host on 2026-10-16 as a Claude Code plugin. Evidence:
+[execution-guard-install-2026-10-16.log](../../Test/evidence/execution-guard-install-2026-10-16.log).
 
 ```bash
 npx cc-safety-net@2.6.12 install --claude-code
+npx cc-safety-net@2.6.12 doctor
 ```
 
-Then `npx cc-safety-net doctor` reports what is enforced. `Test/test_safety_net.py` verifies the
-gate's behavior and skips when the package is absent.
+`install.py` does not do this: the component is third-party software with its own release cadence,
+and Apex does not install software on the user's machine unasked.
+
+**Prerequisite.** The installer shells out to `claude plugin marketplace add`, so the Claude Code
+CLI must be on `PATH`; the desktop application alone is not enough. Without it the install fails
+with `spawn claude ENOENT`. Install it with `npm install -g @anthropic-ai/claude-code`.
+
+The plugin carries its own `PreToolUse` hook, so `settings.json` is untouched and the Apex hooks
+there are unaffected. Both `PreToolUse` hooks run and a denial from either stops the call.
+`Test/test_safety_net.py` verifies the gate against the installed plugin, and skips when it is
+absent.
 
 ## Rejected alternatives
 
