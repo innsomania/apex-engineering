@@ -1,0 +1,34 @@
+Spec planning layer verification — 2026-10-16
+Component: cc-sdd v3.1.0 via 'npx -y cc-sdd@latest --lang en'
+Host: Darwin 24.6.0 x86_64, node v24.21.0
+Method: installed into an empty throwaway git repository; nothing on the user's setup was touched.
+
+-- Files written (50 total, reported by the installer):
+   33  .claude/skills/        (17 skill directories)
+    1  CLAUDE.md              (project root)
+   16  .kiro/settings/
+
+-- Skill directories:
+   kiro-debug
+   kiro-discovery
+   kiro-impl
+   kiro-review
+   kiro-spec-batch
+   kiro-spec-design
+   kiro-spec-init
+   kiro-spec-quick
+   kiro-spec-requirements
+   kiro-spec-status
+   kiro-spec-tasks
+   kiro-steering
+   kiro-steering-custom
+   kiro-validate-design
+   kiro-validate-gap
+   kiro-validate-impl
+   kiro-verify-completion
+
+-- Hook search (settings*.json, hooks*) outside .git:
+   none — the installer registers no Claude Code hook.
+
+-- Consequence: every cc-sdd phase gate is an instruction to the model.
+   Nothing in the harness refuses an action when a gate is skipped.
