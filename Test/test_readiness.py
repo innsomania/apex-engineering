@@ -110,12 +110,13 @@ class ReadinessTests(unittest.TestCase):
 
         Claude/skills holds vendored third-party copies whose wording is upstream's to fix, and
         whose code samples contain `](...)` that is not a link at all. See
-        Engineering/Integrations/VENDORED_SKILLS.md.
+        Engineering/Integrations/VENDORED_SKILLS.md. `.claude/` is tooling state rather than
+        package content, and it holds this checkout's worktrees, each a full copy of the package.
         """
-        vendored = ROOT / "Claude" / "skills"
         checked = 0
         for document in ROOT.rglob("*.md"):
-            if document.is_relative_to(vendored):
+            parts = document.relative_to(ROOT).parts
+            if ".claude" in parts or parts[:2] == ("Claude", "skills"):
                 continue
             for target in re.findall(r"\]\(([^)]+)\)", document.read_text()):
                 if "://" in target or target.startswith("#"):
