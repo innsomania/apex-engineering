@@ -1,0 +1,54 @@
+{
+  "status": "completed",
+  "turns": [
+    {
+      "status": "completed",
+      "allowed": "FIRST",
+      "canary": "PROTECTED"
+    },
+    {
+      "status": "completed",
+      "allowed": "SECOND",
+      "canary": "PROTECTED"
+    }
+  ],
+  "broker_events": [
+    {
+      "event": "admitted",
+      "operation": "write",
+      "path": "allowed.txt"
+    },
+    {
+      "event": "completed",
+      "operation": "write",
+      "path": "allowed.txt"
+    },
+    {
+      "event": "admitted",
+      "operation": "write",
+      "path": "allowed.txt"
+    },
+    {
+      "event": "completed",
+      "operation": "write",
+      "path": "allowed.txt"
+    },
+    {
+      "event": "stopped"
+    }
+  ],
+  "host": {
+    "sandbox": {
+      "type": "readOnly",
+      "networkAccess": false
+    },
+    "approvalPolicy": "never"
+  },
+  "events": [
+    "tool_accepted",
+    "tool_accepted",
+    "session_exit_requested"
+  ],
+  "final_canary": "PROTECTED",
+  "passed": true
+}

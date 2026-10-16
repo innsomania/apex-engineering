@@ -1,0 +1,33 @@
+Reading additional input from stdin...
+2026-10-15T03:55:47.395789Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:47.395915Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:47.397976Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:47.398068Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:47.408215Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:47.408215Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:47.408451Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:47.408453Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:47.429379Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:47.429534Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:47.698631Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:47.698789Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:48.076476Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-10-15T03:55:48.080002Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-10-15T03:55:48.082677Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-10-15T03:55:48.086105Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-10-15T03:55:48.088942Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-10-15T03:55:48.091381Z  WARN codex_rollout::list: state db discrepancy during find_thread_path_by_id_str_in_subdir: falling_back
+2026-10-15T03:55:48.290379Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:48.290468Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:48.977004Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:48.977096Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:50.541806Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:50.541940Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:55.458243Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:55.458355Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:55:57.697022Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:55:57.697145Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:56:02.555565Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:56:02.555734Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`
+2026-10-15T03:56:08.774735Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/explorer.toml must define a non-empty `name`
+2026-10-15T03:56:08.774870Z  WARN codex_agent_roles::loader: Ignoring malformed agent role definition: agent role file at /Users/<user>/.codex/agents/reviewer.toml must define a non-empty `name`

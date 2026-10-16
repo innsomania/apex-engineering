@@ -1,0 +1,467 @@
+{
+  "result": "passed",
+  "scope": "Task ledger CLI acceptance in a temporary workspace; not host stop enforcement.",
+  "existing_focused_tests": {
+    "passed": 14,
+    "failed": 0
+  },
+  "cli_invocations": 40,
+  "expected_rejections": 10,
+  "checks": "Dependency gating; assignment; pause/resume; blocking; missing/failing/changed evidence; rework invalidation; terminal immutability; ready queue; persistence across processes; unrelated note preservation; Markdown export.",
+  "commands": [
+    {
+      "arguments": [
+        "init"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "create",
+        "--project",
+        "acceptance",
+        "--title",
+        "Prerequisite",
+        "--scope",
+        "Temporary fixture only",
+        "--criterion",
+        "Observed fixture check passes"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "create",
+        "--project",
+        "acceptance",
+        "--title",
+        "Dependent",
+        "--scope",
+        "Temporary fixture only",
+        "--criterion",
+        "Observed fixture check passes",
+        "--depends-on",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "list",
+        "--ready"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Dependencies are not completed"
+    },
+    {
+      "arguments": [
+        "assign",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--role",
+        "Coding",
+        "--reason",
+        "Implementation ready"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "pause",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--reason",
+        "Requested pause"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Cannot start a paused task"
+    },
+    {
+      "arguments": [
+        "resume",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: reason must be non-empty text"
+    },
+    {
+      "arguments": [
+        "resume",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--reason",
+        "Explicit continuation received"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "review",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "complete",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Every acceptance criterion requires passing evidence"
+    },
+    {
+      "arguments": [
+        "evidence",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--criterion",
+        "1",
+        "--result",
+        "fail",
+        "--file",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/proof.log",
+        "--summary",
+        "Observed fixture result",
+        "--reviewer",
+        "Test"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "complete",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Every acceptance criterion requires passing evidence"
+    },
+    {
+      "arguments": [
+        "evidence",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--criterion",
+        "1",
+        "--result",
+        "pass",
+        "--file",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/proof.log",
+        "--summary",
+        "Observed fixture result",
+        "--reviewer",
+        "Test"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "complete",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Evidence file is missing or changed; verify again"
+    },
+    {
+      "arguments": [
+        "evidence",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--criterion",
+        "1",
+        "--result",
+        "pass",
+        "--file",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/proof.log",
+        "--summary",
+        "Observed fixture result",
+        "--reviewer",
+        "Test"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "complete",
+        "APX-c659e29068d449a1b9d028f88bf26ec9"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "rework",
+        "APX-c659e29068d449a1b9d028f88bf26ec9",
+        "--reason",
+        "Terminal mutation attempt"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Cannot rework a completed task"
+    },
+    {
+      "arguments": [
+        "list",
+        "--ready"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "block",
+        "APX-dd68172a35c744db992d9ed1b55e48eb",
+        "--reason",
+        "Decision pending"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "resume",
+        "APX-dd68172a35c744db992d9ed1b55e48eb",
+        "--reason",
+        "Decision provided"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "review",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "evidence",
+        "APX-dd68172a35c744db992d9ed1b55e48eb",
+        "--criterion",
+        "1",
+        "--result",
+        "pass",
+        "--file",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/proof.log",
+        "--summary",
+        "Observed fixture result",
+        "--reviewer",
+        "Test"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "rework",
+        "APX-dd68172a35c744db992d9ed1b55e48eb",
+        "--reason",
+        "Implementation changed"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "review",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "complete",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Every acceptance criterion requires passing evidence"
+    },
+    {
+      "arguments": [
+        "evidence",
+        "APX-dd68172a35c744db992d9ed1b55e48eb",
+        "--criterion",
+        "1",
+        "--result",
+        "pass",
+        "--file",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/proof.log",
+        "--summary",
+        "Observed fixture result",
+        "--reviewer",
+        "Test"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "complete",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "create",
+        "--project",
+        "acceptance",
+        "--title",
+        "Withdrawn",
+        "--scope",
+        "Temporary fixture only",
+        "--criterion",
+        "Observed fixture check passes"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "cancel",
+        "APX-eea7039be13d44abbf55d62a71d6f610",
+        "--reason",
+        "Request withdrawn"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "start",
+        "APX-eea7039be13d44abbf55d62a71d6f610"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Cannot start a cancelled task"
+    },
+    {
+      "arguments": [
+        "export",
+        "--output",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/board.md"
+      ],
+      "expected_exit": 1,
+      "actual_exit": 1,
+      "stderr": "Task error: Refusing to replace an unowned note"
+    },
+    {
+      "arguments": [
+        "export",
+        "--output",
+        "/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex cli acceptance pugn33mb/Apex Board.md",
+        "--project",
+        "acceptance"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "show",
+        "APX-dd68172a35c744db992d9ed1b55e48eb"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    },
+    {
+      "arguments": [
+        "list",
+        "--ready"
+      ],
+      "expected_exit": 0,
+      "actual_exit": 0,
+      "stderr": ""
+    }
+  ]
+}

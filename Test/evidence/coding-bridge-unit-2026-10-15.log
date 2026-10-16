@@ -1,0 +1,12 @@
+test_malformed_jsonl_and_nonzero_exit_are_persisted_as_failures (Test.test_coding_bridge.CodingBridgeTests.test_malformed_jsonl_and_nonzero_exit_are_persisted_as_failures) ... ok
+test_missing_codex_fails_startup_without_claiming_a_session (Test.test_coding_bridge.CodingBridgeTests.test_missing_codex_fails_startup_without_claiming_a_session) ... ok
+test_rejects_inactive_and_wrong_role_task_records (Test.test_coding_bridge.CodingBridgeTests.test_rejects_inactive_and_wrong_role_task_records) ... ok
+test_start_uses_task_contract_and_queued_resume_reuses_thread (Test.test_coding_bridge.CodingBridgeTests.test_start_uses_task_contract_and_queued_resume_reuses_thread) ... ok
+test_stop_kills_running_process_and_discards_queued_turn (Test.test_coding_bridge.CodingBridgeTests.test_stop_kills_running_process_and_discards_queued_turn) ... ok
+test_stop_signal_wins_over_completion_and_socket_dispatch (Test.test_coding_bridge.CodingBridgeTests.test_stop_signal_wins_over_completion_and_socket_dispatch) ... ok
+test_zero_exit_without_turn_completed_fails_and_discards_queued_followup (Test.test_coding_bridge.CodingBridgeTests.test_zero_exit_without_turn_completed_fails_and_discards_queued_followup) ... ok
+
+----------------------------------------------------------------------
+Ran 7 tests in 4.005s
+
+OK

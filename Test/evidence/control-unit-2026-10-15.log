@@ -1,0 +1,17 @@
+test_adapter_disconnect_stops_broker (Test.test_control.ControlTests.test_adapter_disconnect_stops_broker) ... ok
+test_adapter_startup_failure_stops_broker (Test.test_control.ControlTests.test_adapter_startup_failure_stops_broker) ... ok
+test_adapter_timeout_stops_broker (Test.test_control.ControlTests.test_adapter_timeout_stops_broker) ... ok
+test_authorized_read_write_and_create (Test.test_control.ControlTests.test_authorized_read_write_and_create) ... ok
+test_byte_and_call_budgets (Test.test_control.ControlTests.test_byte_and_call_budgets) ... ok
+test_closed_broker_and_permission_input_mutation (Test.test_control.ControlTests.test_closed_broker_and_permission_input_mutation) ... ok
+test_denials_preserve_protected_state (Test.test_control.ControlTests.test_denials_preserve_protected_state) ... ok
+test_final_symlinks_and_hardlinks_denied (Test.test_control.ControlTests.test_final_symlinks_and_hardlinks_denied) ... ok
+test_nonregular_file_denied_without_blocking (Test.test_control.ControlTests.test_nonregular_file_denied_without_blocking) ... ok
+test_parent_symlink_denied_even_when_exact_path_allowed (Test.test_control.ControlTests.test_parent_symlink_denied_even_when_exact_path_allowed) ... ok
+test_policy_change_process_network_unknown_and_extra_fields_denied (Test.test_control.ControlTests.test_policy_change_process_network_unknown_and_extra_fields_denied) ... ok
+test_stop_is_terminal_across_threads (Test.test_control.ControlTests.test_stop_is_terminal_across_threads) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.110s
+
+OK

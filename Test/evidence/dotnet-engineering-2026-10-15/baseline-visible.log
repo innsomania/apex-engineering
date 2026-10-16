@@ -1,0 +1,2 @@
+Visible checks passed.
+An issue was encountered verifying workloads. For more information, run "dotnet workload update".

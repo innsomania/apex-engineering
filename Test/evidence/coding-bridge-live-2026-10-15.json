@@ -1,0 +1,16 @@
+{
+  "fixture_root": "/tmp/apex-luna-live-o101sd_z",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "xhigh",
+  "terminal_phase": "stopped",
+  "thread_ids": [
+    "01a14032-254e-78e2-939b-082a601d1a4d",
+    "01a14032-254e-78e2-939b-082a601d1a4d"
+  ],
+  "completed_turns": 2,
+  "focused_test": "python3 -m unittest test_calculator.py -v: 1 test passed, observed independently",
+  "calculator_sha256": "aecc013c518523ca22b7e3780f87002f5cae13fabc369f2f59a1faf7058f8c76",
+  "calculator_returns_42": true,
+  "followup_queue_empty": true,
+  "note": "Isolated fixture only; no universal correctness or containment claim."
+}

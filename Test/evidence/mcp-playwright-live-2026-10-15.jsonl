@@ -1,0 +1,7 @@
+{"type":"thread.started","thread_id":"01a1403e-e714-7603-a9a0-4015ce40735e"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"I’ll use the Playwright MCP server to open the page and read its title."}}
+{"type":"item.started","item":{"id":"item_1","type":"mcp_tool_call","server":"playwright","tool":"browser_navigate","arguments":{"url":"https://example.com"},"result":null,"error":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_1","type":"mcp_tool_call","server":"playwright","tool":"browser_navigate","arguments":{"url":"https://example.com"},"result":{"content":[{"type":"text","text":"### Ran Playwright code\n```js\nawait page.goto('https://example.com');\n```\n### Page\n- Page URL: https://example.com/\n- Page Title: Example Domain\n### Snapshot\n- [Snapshot](.playwright-mcp/page-2026-10-15T15-47-15-155Z.yml)"}],"structured_content":null},"error":null,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_2","type":"agent_message","text":"Navigation succeeded. The observed page title was **Example Domain**."}}
+{"type":"turn.completed","usage":{"input_tokens":70205,"cached_input_tokens":44928,"cache_write_input_tokens":0,"output_tokens":122,"reasoning_output_tokens":9}}

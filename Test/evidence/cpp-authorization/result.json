@@ -1,0 +1,9 @@
+{
+  "baseline": "failed as expected",
+  "independent_access_cases": 32,
+  "independent_result": "passed",
+  "agent_regression_tests": "added and passed",
+  "fixed_source_sha256": "3972bdd509ea6083ca374c955e8d3cdf9c4104fd29de95b12458691d76f57bba",
+  "scope": "one C++ tenant-authorization fixture; not a benchmark of every supported stack",
+  "module_use": "inspect codex-events.jsonl command events for reference reads"
+}

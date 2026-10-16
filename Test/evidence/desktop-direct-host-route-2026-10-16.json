@@ -1,0 +1,7 @@
+{
+  "route": "current Codex desktop functions.exec -> exec_command",
+  "controlled_cli_used": false,
+  "broker_used": false,
+  "direct_write_succeeded": true,
+  "fixture_only": true
+}
