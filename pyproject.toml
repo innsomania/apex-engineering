@@ -1,0 +1,9 @@
+#  pytest runs the same unittest suite that `.apex/verify.json` runs, so that the test-first
+#  guard has test results to judge against. See Engineering/Integrations/TEST_FIRST_GUARD.md.
+#
+#  The suite itself stays plain `unittest`: nothing here asks a test to be written differently,
+#  and `python3 -m unittest discover -s Test -p "test_*.py"` remains the gate.
+
+[tool.pytest.ini_options]
+testpaths = ["Test"]
+python_files = ["test_*.py"]

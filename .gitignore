@@ -4,3 +4,4 @@ __pycache__/
 .playwright-mcp/
 Engineering/Tasks/*.sqlite3
 .claude/
+.venv/
