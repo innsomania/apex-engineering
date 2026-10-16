@@ -10,8 +10,8 @@ component selected to produce that missing step list.
 | Component | [cc-sdd](https://github.com/gotalab/cc-sdd) (`cc-sdd` on npm) |
 | Version observed | 3.1.0 |
 | License | MIT |
-| Installs into | the project, not the user's configuration |
-| Status on this host | verified in a throwaway project; **not installed** anywhere else |
+| Adopted as | its 17 skills, vendored under `Claude/skills/` |
+| Status on this host | **installed globally through `install.py`** |
 
 ## What it produces
 
@@ -54,18 +54,31 @@ be described to the user as one. Apex's hooks remain the only enforcement.
 The intended flow: cc-sdd's File Structure Plan becomes the `allow` list in `.apex/scope.json`, and
 one entry in `tasks.md` is one Apex turn. That conversion is manual today; no converter is written.
 
-## Conflicts to settle before installing it in a project
+## How it is installed here
 
-1. **`CLAUDE.md` at the project root.** The installer writes its own, declaring a `/kiro-*`
-   workflow. The user's global `CLAUDE.md` routes software work to Apex. Both load, and the agent
-   then holds two workflows. Decide which one owns the project before installing.
-2. **Two task records.** `Engineering/Tasks` and `.kiro/specs/` would both track the same work.
-   One must be authoritative; the other goes stale and misleads.
-3. **Two delegation models.** `kiro-impl` runs its own per-task implementer and reviewer; Apex has
+Everything reaches the hosts through Apex, so cc-sdd is not run per project. Its 17 skills are
+vendored under `Claude/skills/` with the upstream MIT licence beside them, and `install.py` links
+each one into `~/.claude/skills/` next to the Apex skill. A global Apex install therefore carries
+them, and `install.py uninstall` removes them again.
+
+**Only the skills are taken.** The upstream installer also writes a project-root `CLAUDE.md`
+declaring a `/kiro-*` workflow, and `.kiro/settings/` templates. Those are left out: the `CLAUDE.md`
+would compete with the global instructions that route software work to Apex. The skills stay
+available as commands without claiming ownership of any project.
+
+The cost of vendoring is that upstream releases do not arrive on their own. Re-run
+`npx cc-sdd@<version> --claude-code-skills --lang en` into an empty directory and copy the result
+over `Claude/skills/`, then re-read this playbook's limits before trusting the new version.
+
+## Conflicts that remain
+
+1. **Two task records.** `Engineering/Tasks` and a spec's `.kiro/specs/` would both track the same
+   work. One must be authoritative; the other goes stale and misleads.
+2. **Two delegation models.** `kiro-impl` runs its own per-task implementer and reviewer; Apex has
    `apex-coding` and `apex-reviewer` behind the `Stop` hook. Running both nests one inside the
    other and reviews the same change twice.
 
-None of these is resolved here. Installing cc-sdd into a real project is a separate decision.
+Neither is resolved here. They surface only when a `/kiro-*` command is actually used.
 
 ## Rejected alternatives
 

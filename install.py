@@ -29,6 +29,18 @@ CLAUDE_TEXT = (
     "references relevant to the task. Existing user and project scope, stop, "
     "Git, and environment restrictions continue to apply.\n"
 )
+SPEC_SKILLS = SOURCE / "Claude" / "skills"
+
+
+def spec_skill_links():
+    """The vendored cc-sdd planning skills, so a global Apex install carries them along.
+
+    See Engineering/Integrations/SPEC_PLANNING.md: they plan the steps, Apex's hooks enforce.
+    """
+    return {f"skills/{path.name}": path
+            for path in sorted(SPEC_SKILLS.glob("kiro-*")) if path.is_dir()}
+
+
 HOSTS = {
     "codex": {"env": "CODEX_HOME", "default": Path.home() / ".codex",
               "instructions": "AGENTS.md", "override": "AGENTS.override.md", "text": CODEX_TEXT,
@@ -37,7 +49,8 @@ HOSTS = {
                "instructions": "CLAUDE.md", "override": None, "text": CLAUDE_TEXT, "hooks": True,
                "links": {"skills/apex-engineering": SOURCE,
                          "agents/apex-coding.md": SOURCE / "Claude" / "agents" / "apex-coding.md",
-                         "agents/apex-reviewer.md": SOURCE / "Claude" / "agents" / "apex-reviewer.md"}},
+                         "agents/apex-reviewer.md": SOURCE / "Claude" / "agents" / "apex-reviewer.md",
+                         **spec_skill_links()}},
 }
 
 

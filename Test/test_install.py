@@ -118,6 +118,18 @@ class InstallationTests(unittest.TestCase):
         installer.configure(self.home, "uninstall", "claude")
         self.assertEqual(json.loads(settings.read_text()), user)
 
+    def test_claude_install_carries_the_vendored_planning_skills(self):
+        vendored = sorted(p.name for p in installer.SPEC_SKILLS.glob("kiro-*") if p.is_dir())
+        self.assertTrue(vendored, "no cc-sdd skills are vendored under Claude/skills")
+        installer.configure(self.home, "install", "claude")
+        for name in vendored:
+            link = self.home / "skills" / name
+            self.assertEqual(link.resolve(), installer.SPEC_SKILLS / name)
+            self.assertTrue((link / "SKILL.md").is_file(), name)
+        installer.configure(self.home, "uninstall", "claude")
+        for name in vendored:
+            self.assertFalse((self.home / "skills" / name).exists(), name)
+
     def test_claude_invalid_settings_block_install_before_mutation(self):
         (self.home / "settings.json").write_text("{broken")
         with self.assertRaises(ValueError):
