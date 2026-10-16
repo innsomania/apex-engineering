@@ -1,0 +1,21 @@
+Execution guard verification — 2026-10-16
+Component: cc-safety-net 2.6.12 (git clone --depth 1, dist/bin/cc-safety-net.js)
+Host: Darwin 24.6.0 x86_64, node v24.21.0
+Method: Claude Code PreToolUse payload on stdin; decision read from hookSpecificOutput.
+Commands below are analyzer INPUT STRINGS. None was executed by a shell.
+
+input : git status
+result: allow (no decision emitted)
+
+input : rm -rf /
+result: deny :: BLOCKED by CC Safety Net Reason: This path contains the protected policy config and you must not modify or delete it. Ru
+
+input : git reset --hard HEAD~3
+result: deny :: BLOCKED by CC Safety Net Reason: git reset --hard destroys all uncommitted changes permanently. Use 'git stash' first. R
+
+input : cat ~/.ssh/id_rsa
+result: deny :: BLOCKED by CC Safety Net Reason: Access to a sensitive path is not allowed. Rule: secret.home.ssh Tool: Bash Command: ca
+
+input : echo $(rm -rf ~/Desktop)
+result: deny :: BLOCKED by CC Safety Net Reason: rm -rf outside cwd is blocked. Retry deleting only explicit paths inside the current di
+

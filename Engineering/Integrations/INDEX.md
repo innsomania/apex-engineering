@@ -8,6 +8,7 @@ Use only the playbook needed by the current task. Check actual availability and 
 | --- | --- | --- |
 | Connected MCP capabilities and task routing | [MCP capability catalog](MCP_CATALOG.md) | Playwright, Microsoft Learn, OpenAI Developer Docs, Context7, GitHub, MarkItDown; conditional providers |
 | Host boundaries, policy, gateway | [Control](CONTROL.md) | Codex, sandbox-runtime, OPA, Cedar, agentgateway, ContextForge |
+| Destructive shell commands and secret reads | [Execution guard](EXECUTION_GUARD.md) | cc-safety-net; damage-control and Boucle rejected |
 | Browser and web evidence | [Browser and research](BROWSER_AND_RESEARCH.md) | Playwright MCP, CLI, engine, Browser Use, Crawl4AI, Firecrawl, SearXNG, Tavily MCP, GPT Researcher |
 | Document and source-code evidence | [Documents and code](DOCUMENTS_AND_CODE.md) | Docling, Docling MCP, MarkItDown, Unstructured, Serena/SolidLSP, Tree-sitter, SCIP |
 | State, evaluations, supplementary filters | [State and evaluation](STATE_AND_EVALUATION.md) | Pydantic, LangGraph, promptfoo, NeMo Guardrails, Presidio, garak; LLM Guard exclusion |
@@ -15,6 +16,8 @@ Use only the playbook needed by the current task. Check actual availability and 
 | Containers and knowledge notes | [Docker and Obsidian](DOCKER_AND_OBSIDIAN.md) | Existing environment and user-designated vault |
 
 The [research report](../Research/GITHUB_RESEARCH_2026-10-15.md) contains the comparative rationale, source links, license caveats, and version snapshot for all 29 repositories. Revalidate version-dependent instructions before a future installation.
+
+The execution guard was selected after that report and is recorded in its own playbook with the observed decisions behind the selection.
 
 ## Connection contract
 
