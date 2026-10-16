@@ -108,7 +108,7 @@ class InstallationTests(unittest.TestCase):
         installed = json.loads(settings.read_text())
         self.assertEqual(installed["enabledPlugins"], user["enabledPlugins"])
         self.assertEqual(installed["hooks"]["Stop"][0], user["hooks"]["Stop"][0])
-        for event in ("UserPromptSubmit", "Stop", "SubagentStop", "PreToolUse"):
+        for event in ("UserPromptSubmit", "Stop", "SubagentStop", "PreToolUse", "PostToolUse"):
             self.assertTrue(any("apex_verify_hook.py" in hook["command"]
                                 for group in installed["hooks"][event] for hook in group["hooks"]))
         self.assertIn("hooks=present", installer.configure(self.home, "status", "claude"))

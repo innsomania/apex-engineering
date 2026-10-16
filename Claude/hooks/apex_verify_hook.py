@@ -21,6 +21,7 @@ Modes (first argument):
             For the apex-reviewer subagent it records the reviewer's verdict instead.
   guard     PreToolUse (Write|Edit): refuse edits during a locked turn, to `.apex/` configs, and
             outside the scope.
+  unlock    PostToolUse (ExitPlanMode): the user approved a plan; lift this turn's lock.
 """
 
 import fnmatch
@@ -211,12 +212,16 @@ def nearby_controls(cwd, depth=2, limit=5):
 
 
 FOLD = str.maketrans("ıİşŞğĞüÜöÖçÇâÂîÎ", "iissgguuoocCaAiI")
-STOP_WORDS = re.compile(
-    r"\b(dur|durdur|stop|yeter|bekle|salak|aptal|gerizekali|orospu|siktir|sikim|amk|aq|"
+# A stop command counts only as (nearly) the whole message: "Fix the Stop hook" is work.
+STOP_COMMANDS = re.compile(r"\b(dur|durdur|stop|yeter|bekle)\b")
+STOP_COMMAND_WORDS = 3
+STOP_ANYWHERE = re.compile(
+    r"\b(salak|aptal|gerizekali|orospu|siktir|sikim|amk|aq|"
     r"allah belani|ne yapiyorsun|ne yapiyosun|kafayi yi\w*)\b")
-QUESTION_WORDS = re.compile(
-    r"\b(mi|mu|misin|musun|miyim|muyum|miyiz|muyuz|midir|mudur|miydi|muydu|"
-    r"neden|niye|nasil|nerede|nereye|hangi|kim|why|how|what|where|which)\b")
+QUESTION_START = re.compile(r"\W*(neden|niye|nasil|nerede|nereye|hangi|kim|why|how|what|where|which)\b")
+QUESTION_PARTICLES = re.compile(r"\b(mi|mu|midir|mudur|miydi|muydu)\b")
+# "düzeltir misin?", "can you add tests?": requests phrased as questions.
+POLITE_REQUEST = re.compile(r"\w[aeiu]r m[iu]s[iu]n\b|\b(can|could|would|will) you\b|\blutfen\b|\bplease\b")
 LOCK_REASONS = {
     "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
             "sentences say what state the work is in, then wait for the user's instruction.",
@@ -229,9 +234,14 @@ LOCK_REASONS = {
 def classify(prompt):
     """'stop', 'question' or None for a user message; a stop signal outranks a question."""
     text = prompt.translate(FOLD).lower()
-    if STOP_WORDS.search(text):
+    if STOP_ANYWHERE.search(text) or (
+            len(text.split()) <= STOP_COMMAND_WORDS and STOP_COMMANDS.search(text)):
         return "stop"
-    if text.rstrip().endswith("?") or QUESTION_WORDS.search(text):
+    if QUESTION_START.match(text):
+        return "question"
+    if POLITE_REQUEST.search(text):
+        return None
+    if text.rstrip().endswith("?") or QUESTION_PARTICLES.search(text):
         return "question"
     return None
 
@@ -249,18 +259,48 @@ def set_turn_lock(event):
         path.unlink(missing_ok=True)
         return
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(kind, encoding="utf-8")
+    cwd = event.get("cwd") or os.getcwd()
+    try:
+        tree = fingerprint(Path(cwd))
+    except (OSError, subprocess.SubprocessError):
+        tree = None
+    path.write_text(json.dumps({"kind": kind, "cwd": cwd, "tree": tree}), encoding="utf-8")
     emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
                                  "additionalContext": f"Apex: {LOCK_REASONS[kind]} File edits are "
                                                       "blocked for this turn."}})
 
 
-def turn_lock(session_id):
+def read_lock(session_id):
+    """The lock record {"kind", "cwd", "tree"} for this turn, or None."""
     try:
-        kind = lock_path(session_id).read_text(encoding="utf-8").strip()
-    except OSError:
+        lock = json.loads(lock_path(session_id).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
         return None
-    return kind if kind in LOCK_REASONS else None
+    return lock if isinstance(lock, dict) and lock.get("kind") in LOCK_REASONS else None
+
+
+def turn_lock(session_id):
+    lock = read_lock(session_id)
+    return lock["kind"] if lock else None
+
+
+def unlock(event):
+    """PostToolUse ExitPlanMode: the user approved a plan, so this turn may edit files."""
+    lock_path(event.get("session_id", "")).unlink(missing_ok=True)
+
+
+def report_locked_changes(event):
+    """Edits are refused during a locked turn, but shell commands can still change files."""
+    lock = read_lock(event.get("session_id", ""))
+    if not lock or lock.get("tree") is None:
+        return
+    try:
+        current = fingerprint(Path(lock.get("cwd") or os.getcwd()))
+    except (OSError, subprocess.SubprocessError):
+        return
+    if current != lock["tree"]:
+        emit({"systemMessage": "Apex: files changed during a turn in which edits were locked "
+                               f"(the user's message was a {lock['kind']}). Please review them."})
 
 
 def baseline(event):
@@ -401,6 +441,8 @@ def stop(event):
             return
         if event.get("agent_type") not in GATED_SUBAGENTS:
             return
+    else:
+        report_locked_changes(event)
     root = find_root(event.get("cwd") or os.getcwd())
     if root is None:
         return
@@ -535,9 +577,9 @@ def main(argv=None):
         event = {}
     if not isinstance(event, dict):
         event = {}
-    handler = {"baseline": baseline, "stop": stop, "guard": guard}.get(mode)
+    handler = {"baseline": baseline, "stop": stop, "guard": guard, "unlock": unlock}.get(mode)
     if handler is None:
-        print(f"usage: {Path(__file__).name} baseline|stop|guard", file=sys.stderr)
+        print(f"usage: {Path(__file__).name} baseline|stop|guard|unlock", file=sys.stderr)
         return 1
     handler(event)
     if OUTPUT:

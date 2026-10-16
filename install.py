@@ -45,7 +45,8 @@ HOOK_SCRIPT = SOURCE / "Claude" / "hooks" / "apex_verify_hook.py"
 HOOKS = (("UserPromptSubmit", None, "baseline", 60),
          ("Stop", None, "stop", 900),
          ("SubagentStop", None, "stop", 900),
-         ("PreToolUse", "Write|Edit|MultiEdit|NotebookEdit", "guard", 10))
+         ("PreToolUse", "Write|Edit|MultiEdit|NotebookEdit", "guard", 10),
+         ("PostToolUse", "ExitPlanMode", "unlock", 10))
 
 
 def _owned_hook(hook):

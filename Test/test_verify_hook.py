@@ -282,6 +282,35 @@ class VerifyHookTests(unittest.TestCase):
             result, edit = self.prompt_then_edit(prompt)
             self.assertIsNone(edit, prompt)
 
+    def test_work_requests_phrased_as_questions_or_naming_stop_are_not_locked(self):
+        sys.path.insert(0, str(HOOK.parent))
+        self.addCleanup(sys.path.remove, str(HOOK.parent))
+        import apex_verify_hook
+        cases = {"Bunu düzeltir misin?": None, "Login sayfasını yapar mısın": None,
+                 "Can you add tests?": None, "Rename the function which parses dates": None,
+                 "Show how the cache works in the README": None, "Fix the Stop hook": None,
+                 "Add a stop button to the player": None, "Bekle, önce testleri yaz": None,
+                 "Kardesim bak bana. Odaklan, tekrar dene.": None,
+                 "Neden bozuldu?": "question", "How does the cache work": "question",
+                 "bu aynisi mi": "question", "dur": "stop", "Bekle!": "stop", "stop it now": "stop"}
+        for prompt, kind in cases.items():
+            self.assertEqual(apex_verify_hook.classify(prompt), kind, prompt)
+
+    def test_plan_approval_lifts_the_turn_lock(self):
+        result, edit = self.prompt_then_edit("Neden bozuk, düzeltir misin?")
+        self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny")
+        self.assertIsNone(self.hook("unlock", hook_event_name="PostToolUse", tool_name="ExitPlanMode"))
+        self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
+                                    tool_input={"file_path": str(self.project / "value.txt")}))
+
+    def test_shell_change_during_locked_turn_is_reported(self):
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="neden boş?")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+        (self.project / "value.txt").write_text("changed by shell\n")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertIn("edits were locked", result["systemMessage"])
+
     def test_turn_lock_applies_without_apex_settings_but_allows_plan_files(self):
         outside = Path(self.temp.name) / "plain"
         outside.mkdir()
