@@ -1,0 +1,1 @@
+{"command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Test -p \"test_*.py\"", "timeout": 300}

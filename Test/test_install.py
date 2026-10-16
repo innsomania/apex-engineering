@@ -98,6 +98,33 @@ class InstallationTests(unittest.TestCase):
         self.assertFalse((self.home / "skills").exists())
         self.assertFalse((self.home / "CLAUDE.md").exists())
 
+    def test_claude_hooks_merge_with_user_settings_and_uninstall_cleanly(self):
+        import json
+        settings = self.home / "settings.json"
+        user = {"enabledPlugins": {"x@y": True},
+                "hooks": {"Stop": [{"hooks": [{"type": "command", "command": "echo mine"}]}]}}
+        settings.write_text(json.dumps(user))
+        installer.configure(self.home, "install", "claude")
+        installed = json.loads(settings.read_text())
+        self.assertEqual(installed["enabledPlugins"], user["enabledPlugins"])
+        self.assertEqual(installed["hooks"]["Stop"][0], user["hooks"]["Stop"][0])
+        for event in ("UserPromptSubmit", "Stop", "SubagentStop", "PreToolUse"):
+            self.assertTrue(any("apex_verify_hook.py" in hook["command"]
+                                for group in installed["hooks"][event] for hook in group["hooks"]))
+        self.assertIn("hooks=present", installer.configure(self.home, "status", "claude"))
+        before = settings.read_text()
+        installer.configure(self.home, "install", "claude")
+        self.assertEqual(settings.read_text(), before)
+        installer.configure(self.home, "uninstall", "claude")
+        self.assertEqual(json.loads(settings.read_text()), user)
+
+    def test_claude_invalid_settings_block_install_before_mutation(self):
+        (self.home / "settings.json").write_text("{broken")
+        with self.assertRaises(ValueError):
+            installer.configure(self.home, "install", "claude")
+        self.assertEqual((self.home / "settings.json").read_text(), "{broken")
+        self.assertFalse((self.home / "skills").exists())
+
     def test_hosts_use_distinct_blocks(self):
         installer.configure(self.home, "install", "codex")
         with self.assertRaises(ValueError):
