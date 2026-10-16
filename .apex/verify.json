@@ -1,1 +1,1 @@
-{"command": "PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s Test -p \"test_*.py\"", "timeout": 300}
+{"command": "PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest -q", "timeout": 300}
