@@ -234,6 +234,13 @@ class VerifyHookTests(unittest.TestCase):
         self.assertNotIn("decision", result)
         self.assertIn("unreviewed", result["systemMessage"])
 
+    def test_controls_in_a_subfolder_trigger_a_warning(self):
+        parent = Path(self.temp.name)
+        result = self.hook("baseline", hook_event_name="UserPromptSubmit", cwd=str(parent), prompt="x")
+        self.assertIn("Apex controls are OFF", result["systemMessage"])
+        self.assertIn("project/.apex", result["hookSpecificOutput"]["additionalContext"])
+        self.assertIsNone(self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="x"))
+
     def test_guard_denies_only_the_verify_config(self):
         denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
                            tool_input={"file_path": ".apex/verify.json"})

@@ -183,9 +183,42 @@ def emit(payload):
             OUTPUT[key] = value
 
 
+def nearby_controls(cwd, depth=2, limit=5):
+    """`.apex` folders below cwd; they do nothing for a session opened in cwd."""
+    found, frontier = [], [Path(cwd)]
+    for _ in range(depth):
+        next_frontier = []
+        for folder in frontier:
+            try:
+                children = sorted(child for child in folder.iterdir() if child.is_dir())
+            except OSError:
+                continue
+            for child in children:
+                if child.name.startswith(".") or child.name == "node_modules":
+                    continue
+                if (child / ".apex").is_dir():
+                    found.append(child.relative_to(cwd).as_posix())
+                next_frontier.append(child)
+        frontier = next_frontier
+    return found[:limit]
+
+
 def baseline(event):
-    root = find_root(event.get("cwd") or os.getcwd())
+    cwd = event.get("cwd") or os.getcwd()
+    root = find_root(cwd)
     if root is None:
+        misplaced = nearby_controls(cwd)
+        if misplaced:
+            where = ", ".join(f"{name}/.apex" for name in misplaced)
+            emit({"systemMessage": f"Apex controls are OFF for this session: they exist in {where}, "
+                                   f"but the session is opened in {cwd}. Nothing is verified, scoped or reviewed.",
+                  "hookSpecificOutput": {
+                      "hookEventName": "UserPromptSubmit",
+                      "additionalContext": (
+                          f"Apex warning: verification, scope and review are NOT active. Apex settings were "
+                          f"found in {where}, but they only apply when the session's folder ({cwd}) or a parent "
+                          "contains .apex. Tell the user before doing any work, and set the controls up at the "
+                          "session folder as the apex-engineering skill describes.")}})
         return
     path = state_path(event.get("session_id", ""), root)
     state = read_state(path)

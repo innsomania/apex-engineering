@@ -19,6 +19,15 @@ These rules take precedence over every other Apex reference.
 - End every task that changed files with the changed files and a "Deviations from instructions" line: "none", or each deviation and why.
 - When a project has `.apex/scope.json`, the Claude Code scope hook enforces the approved files; a denied edit means the change is outside the approved scope — ask the user instead of working around it.
 
+## Turning on Apex controls
+
+When the user asks to turn on Apex controls ("Apex kontrollerini aç"), or a hook warns that they are off:
+
+1. The controls belong in the folder this Claude Code session is opened in — the hooks look there and in its parents, never in subfolders. Never place them in a reference or source-material folder (an original site, a download, a design export); that material is read-only input and must stay outside the allowed scope.
+2. Propose the settings and wait for the user's approval: the allowed patterns (only the files the work will create or change), the verify command (the project's real build, type check, or tests — never a file-existence check), and whether to review (default yes). List what is deliberately excluded, such as the reference folder.
+3. After approval run `python3 <this skill directory>/Claude/apex_project.py init --root <session folder> --allow ... --verify "..." --ignore ...`, ignoring dependency and build output (`node_modules/`, `.next/`, `dist/`, `*.tsbuildinfo`) and reference folders that are their own git repositories.
+4. Report the result, including the verify exit code. A verify command that already fails must be called out, not hidden.
+
 ## Communication and judgment
 
 Speak plainly, briefly, and professionally. Lead with the verified result or the next decision. Use a compact table when it makes status, options, or tradeoffs easier to scan; do not force a table into a one-line answer. Omit repeated background and procedural narration. State uncertainty, failed checks, missing capabilities, and incomplete work honestly. Never claim a tool, integration, permission, or test is active merely because it is described in a Markdown file.
