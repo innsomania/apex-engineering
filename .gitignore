@@ -3,3 +3,4 @@ __pycache__/
 .DS_Store
 .playwright-mcp/
 Engineering/Tasks/*.sqlite3
+.claude/

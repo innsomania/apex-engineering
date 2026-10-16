@@ -11,7 +11,7 @@ to enforce the order.
 | Version observed | 1.7.0 |
 | License | MIT |
 | Decision mechanism | a model call, not parsing |
-| Status on this host | **installed globally, enabled everywhere** (plugin `tdd-guard@tdd-guard`) |
+| Status on this host | installed globally and enabled, but **enforcing nothing here** (no reporter) |
 
 ## What it does
 
@@ -78,18 +78,22 @@ claude plugin install tdd-guard@tdd-guard --scope user
 
 The plugin wraps `npx tdd-guard@latest`, so each call may resolve a newly published release.
 
-**It needs an authenticated model on every implementation edit.** Measured here: the same edit
-that fixed the `tomllib` import came back as
-`{"decision":"block","reason":"Error during validation: Not logged in · Please run /login"}`. That
-is the fail-closed path, not a TDD judgement — the guard could not reach a model, so it denied the
-edit. An authenticated session should not hit this, but a session that loses authentication will
-refuse every implementation edit until the guard is turned off:
+**It needs an authenticated Claude Code CLI, not just the desktop application.** It reaches the
+model through the CLI's own credentials. Measured here: with the CLI signed out, every edit came
+back `{"decision":"block","reason":"Error during validation: Not logged in · Please run /login"}` —
+the fail-closed path, not a TDD judgement. Work stopped until `claude auth login` was run. If that
+happens again:
 
 ```bash
-claude plugin disable tdd-guard@tdd-guard
+claude auth status                        # loggedIn should be true
+claude plugin disable tdd-guard@tdd-guard # or turn it off entirely
 ```
 
 Sending `tdd-guard off` as a message disables it for the session without uninstalling.
 
-**No reporter here.** It ships reporters for vitest, jest, storybook and pytest; this repository's
-suite is `unittest`, so the guard sees no test results and judges from the diff alone.
+**It enforces nothing in this repository.** Re-measured after signing in: editing an implementation
+file with no failing test was **allowed**. Its data directory holds only `modifications.json` and
+no test results, because it reads test state from a reporter and ships them for vitest, jest,
+storybook and pytest, while this suite is `unittest` with no pytest configuration. Installed,
+authenticated and running is therefore not the same as enforcing: making it real here means adding
+pytest and tdd-guard's reporter to this project's test setup.
