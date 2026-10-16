@@ -174,6 +174,66 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIn(".apex/scope.json", result["systemMessage"])
         self.assertEqual(self.run_count(), 0)
 
+    def reviewer_transcript(self, *messages):
+        path = Path(self.temp.name) / f"reviewer-{len(list(Path(self.temp.name).glob('reviewer-*')))}.jsonl"
+        lines = [{"type": "user", "message": {"role": "user", "content": "review"}}]
+        for kind, text in messages:
+            item = ({"type": "text", "text": text} if kind == "text"
+                    else {"type": "tool_use", "name": "SubagentHandback", "input": {"message": text}})
+            lines.append({"type": "assistant", "message": {"role": "assistant", "content": [item]}})
+        path.write_text("\n".join(json.dumps(line) for line in lines))
+        return str(path)
+
+    def review_ready(self):
+        (self.project / ".apex" / "review.json").write_text("{}")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit",
+                  prompt="Sadece value.txt dosyasındaki metni koru, başka hiçbir şey ekleme.")
+        (self.project / "extra.txt").write_text("unrequested\n")
+
+    def test_review_is_required_and_receives_verbatim_instructions(self):
+        self.review_ready()
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn('subagent_type "apex-reviewer"', result["reason"])
+        self.assertIn("- extra.txt", result["reason"])
+        instructions = result["reason"].split("Instructions file: ")[1].split("\n")[0]
+        self.assertIn("başka hiçbir şey ekleme", Path(instructions).read_text())
+
+    def test_review_pass_releases_only_the_reviewed_tree(self):
+        self.review_ready()
+        self.hook("stop", hook_event_name="Stop")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=self.reviewer_transcript(("tool", "No deviations.\nAPEX-REVIEW: PASS")))
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop", stop_hook_active=True))
+        (self.project / "extra.txt").write_text("changed after the review\n")
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+
+    def test_review_fail_blocks_with_findings(self):
+        self.review_ready()
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=self.reviewer_transcript(
+                      ("text", "APEX-REVIEW: PASS"),  # an earlier draft must not count
+                      ("tool", '- extra.txt: unrequested file (instruction: "başka hiçbir şey ekleme")\n'
+                               "APEX-REVIEW: FAIL")))
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("unrequested file", result["reason"])
+
+    def test_missing_verdict_counts_as_failure(self):
+        self.review_ready()
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=self.reviewer_transcript(("text", "Looks fine to me.")))
+        self.assertIn("no APEX-REVIEW verdict", self.hook("stop", hook_event_name="Stop")["reason"])
+
+    def test_ignored_review_request_is_reported_to_the_user(self):
+        self.review_ready()
+        for _ in range(3):
+            self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertNotIn("decision", result)
+        self.assertIn("unreviewed", result["systemMessage"])
+
     def test_guard_denies_only_the_verify_config(self):
         denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
                            tool_input={"file_path": ".apex/verify.json"})

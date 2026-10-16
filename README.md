@@ -51,6 +51,11 @@ The Claude installation also merges the [Apex hooks](Claude/hooks/apex_verify_ho
 | --- | --- |
 | `.apex/verify.json` — `{"command": "npm test", "timeout": 600}` | A turn (or `apex-coding` run) that changed files cannot end until the command passes; after 3 failed attempts Claude stops and the user is told the work is not done. |
 | `.apex/scope.json` — `{"allow": ["src/", "tests/*.py"]}` | Edits outside the approved files are refused immediately, and any change outside them found through git at the end of a turn (including shell or commit changes) blocks the stop until it is reverted or the user approves it. |
+| `.apex/review.json` — `{}` | A turn that changed files cannot end until the independent `apex-reviewer` subagent has compared exactly that working tree with the user's verbatim messages (recorded by the hook, not relayed by the main agent) and reported `APEX-REVIEW: PASS`. |
+
+Run the Claude installation from your own terminal: a sandboxed Claude Code shell cannot write `~/.claude/agents` or `settings.json`.
+
+The user settings on this machine also enable the Claude Code Bash sandbox (`sandbox.enabled`, `allowUnsandboxedCommands: false`): shell commands can write only inside the project, `$TMPDIR`, and `~/.codex`, and reach only listed package registries without a prompt. The sandbox blocks Unix sockets, so the Codex CLI bridge cannot run from a sandboxed Claude session; its tests skip there and run in full outside it, for example from the verification hook.
 
 Start a new Codex chat or CLI session after installation. Example:
 

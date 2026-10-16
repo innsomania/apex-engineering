@@ -55,10 +55,31 @@ if mode != "missing_completion":
 """
 
 
+def _unix_sockets_allowed():
+    """A sandboxed Claude Code shell refuses Unix-socket binds; the bridge needs one."""
+    import socket
+    directory = tempfile.mkdtemp(prefix="apcb-", dir=os.environ.get("TMPDIR") or None)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        server.bind(os.path.join(directory, "s"))
+        return True
+    except PermissionError:
+        return False
+    finally:
+        server.close()
+        for name in os.listdir(directory):
+            os.unlink(os.path.join(directory, name))
+        os.rmdir(directory)
+
+
+@unittest.skipUnless(_unix_sockets_allowed(),
+                     "Unix sockets are blocked here (Claude Code sandbox); run outside the sandbox")
 class CodingBridgeTests(unittest.TestCase):
     def setUp(self):
-        # /tmp keeps Unix socket paths short enough for macOS sun_path limits.
-        self.temp = tempfile.TemporaryDirectory(prefix="apcb-", dir="/tmp")
+        # A short base keeps Unix socket paths within macOS sun_path limits. Prefer a short
+        # TMPDIR (sandboxed sessions only allow writes there), otherwise /tmp.
+        base = os.environ.get("TMPDIR", "")
+        self.temp = tempfile.TemporaryDirectory(prefix="apcb-", dir=base if base and len(base) <= 32 else "/tmp")
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.project = self.root / "project with spaces"

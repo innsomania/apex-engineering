@@ -36,7 +36,8 @@ HOSTS = {
     "claude": {"env": "CLAUDE_CONFIG_DIR", "default": Path.home() / ".claude",
                "instructions": "CLAUDE.md", "override": None, "text": CLAUDE_TEXT, "hooks": True,
                "links": {"skills/apex-engineering": SOURCE,
-                         "agents/apex-coding.md": SOURCE / "Claude" / "agents" / "apex-coding.md"}},
+                         "agents/apex-coding.md": SOURCE / "Claude" / "agents" / "apex-coding.md",
+                         "agents/apex-reviewer.md": SOURCE / "Claude" / "agents" / "apex-reviewer.md"}},
 }
 
 
