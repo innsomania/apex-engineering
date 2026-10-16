@@ -9,6 +9,7 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import sys
 import tempfile
 import uuid
 
@@ -48,6 +49,22 @@ def file_hash(path):
 class Ledger:
     def __init__(self, path):
         self.path = Path(path).absolute()
+        self.board_config = self.path.with_suffix(".board.json")
+        self.board_warning = None
+
+    def _sync_board(self, task):
+        """Refresh the configured Markdown board after a committed change; never undo the change."""
+        self.board_warning = None
+        if not self.board_config.is_file():
+            return task
+        try:
+            config = json.loads(self.board_config.read_text(encoding="utf-8"))
+            if not isinstance(config, dict) or not isinstance(config.get("output"), str):
+                raise ValueError(f'{self.board_config.name} needs an "output" path')
+            self.export(Path(config["output"]).expanduser(), config.get("project"))
+        except (ValueError, OSError, sqlite3.Error) as error:
+            self.board_warning = f"Task saved, but the board was not refreshed: {error}"
+        return task
 
     def initialize(self):
         # Explicit initialization only. Never create a ledger during read commands.
@@ -116,7 +133,8 @@ class Ledger:
                     "criteria": [{"id": str(i + 1), "text": text} for i, text in enumerate(criteria)],
                     "evidence": {}, "reason": "", "created_at": now, "updated_at": now,
                     "history": []}
-            return self.save(db, task, "created", {"role": role})
+            task = self.save(db, task, "created", {"role": role})
+        return self._sync_board(task)
 
     def list(self, project=None, ready=False):
         with self.connection() as db:
@@ -139,7 +157,8 @@ class Ledger:
             if task["state"] not in {"queued", "blocked", "paused"}:
                 raise ValueError("Assign only queued, blocked, or paused tasks")
             task["role"] = role
-            return self.save(db, task, "assigned", {"role": role, "reason": reason})
+            task = self.save(db, task, "assigned", {"role": role, "reason": reason})
+        return self._sync_board(task)
 
     def transition(self, task_id, action, reason=""):
         if action not in TRANSITIONS:
@@ -165,7 +184,8 @@ class Ledger:
             if action in {"start", "rework", "resume"}:
                 task["evidence"] = {}
             task["state"], task["reason"] = target, reason
-            return self.save(db, task, action, {"reason": reason})
+            task = self.save(db, task, action, {"reason": reason})
+        return self._sync_board(task)
 
     def evidence(self, task_id, criterion, result, path, summary, reviewer):
         if result not in {"pass", "fail"} or reviewer not in {"Test", "Security"}:
@@ -183,7 +203,8 @@ class Ledger:
             if criterion not in {c["id"] for c in task["criteria"]}:
                 raise ValueError("Unknown acceptance criterion")
             task["evidence"][criterion] = evidence
-            return self.save(db, task, "evidence", {"criterion": criterion, **evidence})
+            task = self.save(db, task, "evidence", {"criterion": criterion, **evidence})
+        return self._sync_board(task)
 
     def export(self, destination, project=None):
         destination = Path(destination).absolute()
@@ -288,6 +309,8 @@ def main():
     except (ValueError, OSError, sqlite3.Error) as error:
         parser.exit(1, f"Task error: {error}\n")
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    if ledger.board_warning:
+        print(ledger.board_warning, file=sys.stderr)
 
 
 if __name__ == "__main__":

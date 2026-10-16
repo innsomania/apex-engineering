@@ -7,9 +7,13 @@ Use [tasks.py](tasks.py) for durable multi-step software work, explicit task tra
 - Tool: `/Users/<user>/Desktop/Apex Engineering/Engineering/tasks.py`
 - Ledger: `/Users/<user>/Desktop/Apex Engineering/Engineering/Tasks/apex.sqlite3`
 - Project label: `Apex Engineering`
-- Obsidian board: `/Users/<user>/Opsidian/Apex Tasks.md`
+- Obsidian board: `/Users/<user>/Opsidian/Apex Tasks.md`, refreshed automatically after every ledger change (configured in `Engineering/Tasks/apex.board.json`)
 
 The ledger contains the authoritative task state and event history. Export is an explicit snapshot, not continuous synchronization. Read the ledger when resuming; do not infer live state from an old board. Keep unrelated projects in distinct project labels or separate ledgers. Never overwrite an existing ledger to initialize a session.
+
+## Automatic board refresh
+
+A ledger at `NAME.sqlite3` refreshes its Markdown board when `NAME.board.json` exists beside it, for example `{"output": "/Users/<user>/Opsidian/Apex Tasks.md", "project": "Apex Engineering"}`. Every committed `create`, `assign`, lifecycle transition, and `evidence` command then re-exports the board; `project` is optional. A board failure (such as an unowned destination note) never undoes the task change: the CLI prints a warning on stderr and the ledger stays authoritative. Without the config file nothing is exported automatically, and `export` remains available for manual snapshots.
 
 ## Task contract
 

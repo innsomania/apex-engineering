@@ -177,6 +177,32 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(board.read_bytes(), previous)
         self.assertEqual(list(self.root.glob(".apex-board-*")), [])
 
+    def test_configured_board_refreshes_after_every_change(self):
+        board = self.root / "vault dir" / "Apex Tasks.md"
+        (self.root / "state.board.json").write_text(json.dumps({"output": str(board)}))
+        task_id = self.create(title="First board task")
+        self.assertIn("First board task", board.read_text())
+        self.assertIn("State: queued", board.read_text())
+        self.ledger.transition(task_id, "start")
+        self.assertIn("State: active", board.read_text())
+        self.ledger.assign(self.create(title="Second"), "Coding", "Implementation owner")
+        self.assertIn("Second", board.read_text())
+        self.assertIsNone(self.ledger.board_warning)
+
+    def test_board_failure_keeps_the_task_change(self):
+        unowned = self.root / "Personal note.md"
+        unowned.write_text("my own note\n")
+        (self.root / "state.board.json").write_text(json.dumps({"output": str(unowned)}))
+        task_id = self.create()
+        self.assertEqual(self.ledger.show(task_id)["state"], "queued")
+        self.assertIn("board was not refreshed", self.ledger.board_warning)
+        self.assertEqual(unowned.read_text(), "my own note\n")
+
+    def test_without_board_config_nothing_is_exported(self):
+        self.create()
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()),
+                         ["state.sqlite3", "test.log"])
+
     def test_read_does_not_create_store_and_init_preserves_existing(self):
         missing = self.root / "missing" / "ledger.sqlite3"
         with self.assertRaises(ValueError):

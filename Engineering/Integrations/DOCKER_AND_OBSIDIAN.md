@@ -30,4 +30,4 @@ Use standard Markdown links and portable prose for new notes. Obsidian is option
 
 This integration provides file-based knowledge navigation. It does not implement live app control, automatic synchronization, semantic memory, or a search index.
 
-The [task system](../TASK_SYSTEM.md) exports a real Markdown task board to `/Users/<user>/Opsidian/Apex Tasks.md`. That file is an explicitly refreshed snapshot of the local ledger. Existing unrelated vault notes are preserved; task changes belong in the ledger, not the generated board.
+The [task system](../TASK_SYSTEM.md) exports a real Markdown task board to `/Users/<user>/Opsidian/Apex Tasks.md`. The ledger refreshes that snapshot automatically after every change (see the task system's automatic board refresh). Existing unrelated vault notes are preserved; task changes belong in the ledger, not the generated board.
