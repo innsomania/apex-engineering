@@ -12,7 +12,10 @@ import os
 from pathlib import Path
 import re
 import sys
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 and older; load_config fails closed below.
+    tomllib = None
 from urllib.parse import urlsplit
 
 
@@ -65,9 +68,11 @@ def load_config(path=None):
             return {}
         if config_path.is_symlink() or not config_path.is_file():
             raise ValueError("Configuration must be a regular file")
+        if tomllib is None:
+            raise ValueError("Reading it needs tomllib (Python 3.11 or newer)")
         with config_path.open("rb") as stream:
             config = tomllib.load(stream)
-    except (OSError, tomllib.TOMLDecodeError, ValueError) as error:
+    except (OSError, ValueError) as error:
         raise ValueError("Codex MCP configuration is unavailable or invalid") from error
     servers = config.get("mcp_servers", {})
     if not isinstance(servers, dict):

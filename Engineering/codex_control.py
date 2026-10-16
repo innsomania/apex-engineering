@@ -12,7 +12,10 @@ import subprocess
 import tempfile
 import threading
 import time
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 and older; the session fails closed below.
+    tomllib = None
 
 DISABLED = (
     'apps plugins plugin_hooks codex_hooks hooks browser_use browser_use_external '
@@ -55,7 +58,14 @@ def command():
                  'web_search': 'disabled', 'features.code_mode_host': True}
     overrides.update({f'features.{feature}': False for feature in DISABLED})
     config_path = Path(os.environ.get('CODEX_HOME', str(Path.home() / '.codex'))) / 'config.toml'
-    config = tomllib.loads(config_path.read_text()) if config_path.exists() else {}
+    if not config_path.exists():
+        config = {}
+    elif tomllib is None:
+        raise RuntimeError(f'Reading {config_path} needs tomllib (Python 3.11 or newer). Every '
+                           'configured MCP server has to be disabled by name, so the session '
+                           'cannot start while the configuration is unreadable.')
+    else:
+        config = tomllib.loads(config_path.read_text())
     for name in config.get('mcp_servers', {}):
         if not re.fullmatch(r'[A-Za-z0-9_-]+', name):
             raise RuntimeError('Unsupported MCP configuration key')

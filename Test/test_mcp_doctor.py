@@ -148,5 +148,22 @@ class McpDoctorTests(unittest.TestCase):
             doctor.audit_jsonl([], "not-a-task")
 
 
+class ConfigReadingTests(unittest.TestCase):
+    """The module imports without tomllib (Python 3.10 and older) but never reads past it."""
+
+    def test_an_unreadable_configuration_is_rejected_not_treated_as_empty(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / "config.toml"
+            config.write_text('[mcp_servers.one]\ncommand = "x"\n', encoding="utf-8")
+            with patch.object(doctor, "tomllib", None):
+                with self.assertRaises(ValueError):
+                    doctor.load_config(config)
+
+    def test_a_missing_configuration_is_empty_even_without_tomllib(self):
+        with patch.object(doctor, "tomllib", None):
+            self.assertEqual(doctor.load_config(Path("/nonexistent/config.toml")), {})
+
+
 if __name__ == "__main__":
     unittest.main()
