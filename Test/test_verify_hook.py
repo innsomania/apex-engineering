@@ -110,6 +110,70 @@ class VerifyHookTests(unittest.TestCase):
         self.assertNotIn("decision", result)
         self.assertIn('"command"', result["systemMessage"])
 
+    def scope(self, *allow):
+        (self.project / ".apex" / "scope.json").write_text(json.dumps({"allow": list(allow)}))
+
+    def edit(self, target):
+        return self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
+                         tool_input={"file_path": target})
+
+    def test_guard_enforces_scope_patterns(self):
+        self.scope("src/", "README.md", "tests/*.py")
+        (self.project / "src").mkdir()
+        self.assertIsNone(self.edit(str(self.project / "src" / "deep" / "app.js")))
+        self.assertIsNone(self.edit("README.md"))
+        self.assertIsNone(self.edit(str(self.project / "tests" / "test_app.py")))
+        for target in ("value.txt", "srcx/file.js", str(Path(self.temp.name) / "outside.txt"),
+                       ".apex/scope.json"):
+            result = self.edit(target if target.startswith("/") else str(self.project / target))
+            self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", target)
+
+    def test_shell_change_outside_scope_blocks_stop(self):
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        (self.project / "src" / "app.js").write_text("ok\n")
+        (self.project / "value.txt").write_text("ok\nextra line from a shell command\n")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("- value.txt", result["reason"])
+        self.assertNotIn("src/app.js", result["reason"])
+        self.assertEqual(self.run_count(), 0)
+        subprocess.run(["git", "checkout", "--", "value.txt"], cwd=self.project, check=True)
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop", stop_hook_active=True))
+        self.assertEqual(self.run_count(), 1)
+
+    def test_preexisting_dirty_files_are_not_blamed_on_the_turn(self):
+        self.scope("src/")
+        self.git_init()
+        (self.project / "value.txt").write_text("ok\n\n")  # user's own uncommitted edit
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        (self.project / "src").mkdir()
+        (self.project / "src" / "new.js").write_text("x\n")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+
+    def test_committed_change_outside_scope_is_caught(self):
+        self.scope("src/")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        (self.project / "notes.md").write_text("sneaky\n")
+        for args in (["add", "notes.md"],
+                     ["-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-qm", "x"]):
+            subprocess.run(["git", *args], cwd=self.project, check=True)
+        self.assertIn("- notes.md", self.hook("stop", hook_event_name="Stop")["reason"])
+
+    def test_scope_without_verify_config_and_settings_change_notice(self):
+        (self.project / ".apex" / "verify.json").unlink()
+        self.scope("src/")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        self.scope("src/", "value.txt")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertNotIn("decision", result)
+        self.assertIn(".apex/scope.json", result["systemMessage"])
+        self.assertEqual(self.run_count(), 0)
+
     def test_guard_denies_only_the_verify_config(self):
         denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
                            tool_input={"file_path": ".apex/verify.json"})

@@ -9,7 +9,8 @@ Before editing, read `Coding/WORKFLOW.md` and the matching technology guide in t
 
 Rules:
 
-- Implement only what the scope and acceptance criteria require. If the request and the scope conflict and you cannot reconcile them within scope, stop and report the conflict instead of choosing another design.
+- Follow the user's request and the task scope literally. Implement only what they require: no extra features, redesign, refactoring, restyling, renames, or technology changes, even if you consider them improvements. If the request and the scope conflict, or something is ambiguous, stop and report it instead of choosing for the user.
+- Edit only files inside the approved scope. A scope-hook denial means stop and report the needed file; do not work around it with shell commands.
 - Do not change Apex task-ledger state, record evidence, or claim acceptance. Engineering does that after independent verification.
 - Do not start another Coding worker or subagent, and do not commit, push, or switch branches unless the delegation message says to.
 - Run the narrowest relevant build and tests. Report honestly which checks passed, which failed, and which you did not run.
@@ -22,5 +23,7 @@ End with this report, and nothing after it:
 Changed files: <path — one-line purpose, one per line>
 Verification: <command — passed/failed/not run, one per line>
 Acceptance criteria: <criterion — met/not met/unverified, with evidence>
+Deviations from instructions: <each deviation and why; "none" if none>
+Suggestions (not applied): <ideas you noticed; "none" if none>
 Open issues: <conflicts, blockers, or follow-ups; "none" if none>
 ```

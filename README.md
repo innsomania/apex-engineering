@@ -45,6 +45,13 @@ python3 install.py status --host all
 
 This links `skills/apex-engineering` and the `apex-coding` subagent (`agents/apex-coding.md`, sourced from `Claude/agents/`) into `CLAUDE_CONFIG_DIR` or `~/.claude`, and adds a marked routing block to the global `CLAUDE.md`. The desktop Code tab and the `claude` CLI share this directory. In Claude Code, Engineering delegates Coding to the `apex-coding` subagent by default; the Codex CLI bridge is used only when the user asks for Codex. Use `--host all` to configure both hosts and `--claude-home` to select another directory. Start a new Claude Code session after installation.
 
+The Claude installation also merges the [Apex hooks](Claude/hooks/apex_verify_hook.py) into `settings.json`. They do nothing until a project opts in with files that only the user edits:
+
+| File | Effect |
+| --- | --- |
+| `.apex/verify.json` — `{"command": "npm test", "timeout": 600}` | A turn (or `apex-coding` run) that changed files cannot end until the command passes; after 3 failed attempts Claude stops and the user is told the work is not done. |
+| `.apex/scope.json` — `{"allow": ["src/", "tests/*.py"]}` | Edits outside the approved files are refused immediately, and any change outside them found through git at the end of a turn (including shell or commit changes) blocks the stop until it is reverted or the user approves it. |
+
 Start a new Codex chat or CLI session after installation. Example:
 
 ```text

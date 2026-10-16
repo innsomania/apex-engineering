@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
-"""Claude Code hooks: a turn that changed files cannot end until the project's checks pass.
+"""Claude Code hooks that keep an agent inside the user's instructions.
 
-Opt-in per project: create `.apex/verify.json` at the project root, for example
-{"command": "npm test", "timeout": 600}. Projects without that file are untouched.
+Opt-in per project, both files at the project root and both changed only by the user:
+  .apex/verify.json  {"command": "npm test", "timeout": 600}
+                     A turn that changed files cannot end until the command passes.
+  .apex/scope.json   {"allow": ["src/", "tests/*.py"]}
+                     Files the approved plan may change. A pattern ending in "/" covers that
+                     folder; other patterns are fnmatch globs where "*" also crosses folders.
+Projects without these files are untouched.
 
 Modes (first argument):
-  baseline  UserPromptSubmit: remember the working-tree fingerprint at the start of a turn.
-  stop      Stop / SubagentStop: if files changed this turn, run the command; block on failure.
-  guard     PreToolUse (Write|Edit): refuse edits to `.apex/verify.json`.
+  baseline  UserPromptSubmit: remember the working tree at the start of a turn.
+  stop      Stop / SubagentStop: block if files outside the scope changed this turn, then
+            run the verify command if files changed; block on failure.
+  guard     PreToolUse (Write|Edit): refuse edits to `.apex/` configs and outside the scope.
 """
 
+import fnmatch
 import hashlib
 import json
 import os
@@ -18,6 +25,7 @@ import subprocess
 import sys
 
 CONFIG = Path(".apex") / "verify.json"
+SCOPE = Path(".apex") / "scope.json"
 MAX_ATTEMPTS = 3
 OUTPUT_TAIL = 4000
 STATE_DIR = Path(os.environ.get("APEX_HOOK_STATE_DIR")
@@ -28,9 +36,32 @@ GATED_SUBAGENTS = {"apex-coding"}
 def find_root(cwd):
     path = Path(cwd).resolve()
     for candidate in (path, *path.parents):
-        if (candidate / CONFIG).is_file():
+        if (candidate / CONFIG).is_file() or (candidate / SCOPE).is_file():
             return candidate
     return None
+
+
+def load_scope(root):
+    """Allowed patterns, or None when the project has no scope file."""
+    if not (root / SCOPE).is_file():
+        return None
+    try:
+        allow = json.loads((root / SCOPE).read_text(encoding="utf-8")).get("allow")
+    except (OSError, ValueError, AttributeError) as error:
+        raise ValueError(f"{SCOPE} is unreadable: {error}") from error
+    if not isinstance(allow, list) or not all(isinstance(item, str) and item for item in allow):
+        raise ValueError(f'{SCOPE} needs "allow": a list of path patterns')
+    return allow
+
+
+def in_scope(relative, allow):
+    for pattern in allow:
+        if pattern.endswith("/"):
+            if relative == pattern[:-1] or relative.startswith(pattern):
+                return True
+        elif fnmatch.fnmatchcase(relative, pattern):
+            return True
+    return False
 
 
 def load_config(root):
@@ -72,6 +103,44 @@ def fingerprint(root):
     return digest.hexdigest()
 
 
+def snapshot(root):
+    """HEAD plus a content hash of every dirty or untracked file; None outside git."""
+    if _git(root, "rev-parse", "--is-inside-work-tree").returncode != 0:
+        return None
+    head = _git(root, "rev-parse", "--verify", "-q", "HEAD").stdout.decode().strip()
+    entries = _git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all").stdout.split(b"\0")
+    files = {}
+    index = 0
+    while index < len(entries):
+        entry = entries[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        name = os.fsdecode(entry[3:])
+        if entry[:1] in (b"R", b"C"):
+            index += 1  # the original path of a rename or copy
+        path = root / name
+        try:
+            files[name] = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "<absent>"
+        except OSError:
+            files[name] = "<unreadable>"
+    return {"head": head, "files": files}
+
+
+def turn_changes(root, before):
+    """Paths whose content changed since the turn's baseline snapshot."""
+    after = snapshot(root)
+    if after is None:
+        return []
+    before = before or {"head": None, "files": {}}
+    changed = {name for name in set(before["files"]) | set(after["files"])
+               if before["files"].get(name) != after["files"].get(name)}
+    if before.get("head") and before["head"] != after["head"]:
+        committed = _git(root, "diff", "--name-only", "-z", before["head"], after["head"] or "HEAD").stdout
+        changed |= {os.fsdecode(name) for name in committed.split(b"\0") if name}
+    return sorted(changed)
+
+
 def state_path(session_id, root):
     key = hashlib.sha256(f"{session_id}\0{root}".encode()).hexdigest()[:24]
     return STATE_DIR / f"{key}.json"
@@ -92,8 +161,16 @@ def write_state(path, state):
     os.replace(temporary, path)
 
 
+OUTPUT = {}
+
+
 def emit(payload):
-    print(json.dumps(payload, ensure_ascii=False))
+    """Merge into the single JSON object main() prints; Claude Code reads one object."""
+    for key, value in payload.items():
+        if key == "systemMessage" and key in OUTPUT:
+            OUTPUT[key] += "\n" + value
+        else:
+            OUTPUT[key] = value
 
 
 def baseline(event):
@@ -102,8 +179,23 @@ def baseline(event):
         return
     path = state_path(event.get("session_id", ""), root)
     state = read_state(path)
-    state.update({"baseline": fingerprint(root), "failures": 0})
+    state.update({"baseline": fingerprint(root), "snapshot": snapshot(root), "failures": 0})
     write_state(path, state)
+
+
+def fail(path, state, message):
+    """Block the stop with ``message`` until MAX_ATTEMPTS, then release with a user notice."""
+    failures = int(state.get("failures", 0)) + 1
+    state["failures"] = failures
+    write_state(path, state)
+    if failures >= MAX_ATTEMPTS:
+        emit({"systemMessage": f"Apex: still failing after {failures} attempts — the work is NOT done. "
+                               f"Claude was allowed to stop so you can decide.\n{message[:OUTPUT_TAIL]}"})
+    else:
+        emit({"decision": "block",
+              "reason": f"Apex check failed (attempt {failures}/{MAX_ATTEMPTS}). The task is not done. "
+                        "Do not apologize and do not claim completion. If it cannot be resolved "
+                        f"within the user's instructions, say exactly what blocks it.\n\n{message}"})
 
 
 def stop(event):
@@ -117,10 +209,36 @@ def stop(event):
     current = fingerprint(root)
     if current is not None and current in (state.get("baseline"), state.get("passed")):
         return  # nothing changed this turn, or this exact tree already passed
+    notices = []
+    try:
+        allow = load_scope(root)
+    except ValueError as error:
+        allow = None
+        notices.append(str(error))
+    if allow is not None:
+        changed = turn_changes(root, state.get("snapshot"))
+        outside = [name for name in changed if not name.startswith(".apex/") and not in_scope(name, allow)]
+        configs = [name for name in changed if name.startswith(".apex/")]
+        if configs:
+            notices.append("Apex settings changed this turn — please review: " + ", ".join(configs))
+        if outside:
+            if notices:
+                emit({"systemMessage": "\n".join(notices)})
+            fail(path, state, "These files changed outside the approved scope (.apex/scope.json):\n"
+                 + "\n".join(f"- {name}" for name in outside)
+                 + "\nRestore them (for example `git checkout -- <file>`, or delete files you created), "
+                   "or stop and ask the user to approve them. Do not edit .apex/scope.json yourself.")
+            return
+    if not (root / CONFIG).is_file():
+        if notices:
+            emit({"systemMessage": "\n".join(notices)})
+        state.update({"passed": current, "failures": 0})
+        write_state(path, state)
+        return
     try:
         command, timeout = load_config(root)
     except ValueError as error:
-        emit({"systemMessage": f"Apex verify: {error}"})
+        emit({"systemMessage": "\n".join([*notices, f"Apex verify: {error}"])})
         return
     try:
         result = subprocess.run(command, shell=True, cwd=root, capture_output=True,
@@ -130,24 +248,20 @@ def stop(event):
     except subprocess.TimeoutExpired as error:
         code = "timeout"
         output = ((error.stdout or b"") + (error.stderr or b"")).decode("utf-8", errors="replace")
+    if notices:
+        emit({"systemMessage": "\n".join(notices)})
     if code == 0:
         state.update({"passed": current, "failures": 0})
         write_state(path, state)
         return
-    failures = int(state.get("failures", 0)) + 1
-    state["failures"] = failures
-    write_state(path, state)
-    if failures >= MAX_ATTEMPTS:
-        emit({"systemMessage": f"Apex verify: `{command}` still fails after {failures} attempts. "
-                               "The work is NOT done; Claude was allowed to stop so you can decide."})
-        return
-    tail = output[-OUTPUT_TAIL:]
-    emit({"decision": "block",
-          "reason": (f"Apex verification failed (attempt {failures}/{MAX_ATTEMPTS}): `{command}` exited "
-                     f"with {code}. The task is not done. Fix the cause and finish again; do not "
-                     "apologize, do not claim completion, and do not weaken the checks or edit "
-                     f"{CONFIG}. If it cannot be fixed within scope, say exactly what blocks it.\n\n"
-                     f"Output (last {OUTPUT_TAIL} chars):\n{tail}")})
+    fail(path, state, f"Verification `{command}` exited with {code}. Fix the cause and finish again; "
+                      f"do not weaken the checks or edit {CONFIG}.\n\nOutput (last {OUTPUT_TAIL} chars):\n"
+                      + output[-OUTPUT_TAIL:])
+
+
+def deny(reason):
+    emit({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                 "permissionDecisionReason": reason}})
 
 
 def guard(event):
@@ -155,14 +269,30 @@ def guard(event):
     target = tool_input.get("file_path") or tool_input.get("notebook_path")
     if not isinstance(target, str):
         return
-    path = Path(target)
-    if not path.is_absolute():
-        path = Path(event.get("cwd") or os.getcwd()) / path
-    if path.resolve().parts[-2:] == CONFIG.parts:
-        emit({"hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": "deny",
-            "permissionDecisionReason": f"{CONFIG} defines how Apex verifies work; only the user changes it."}})
+    cwd = Path(event.get("cwd") or os.getcwd())
+    path = Path(target) if Path(target).is_absolute() else cwd / target
+    path = path.resolve()
+    if path.parts[-2:] in (CONFIG.parts, SCOPE.parts):
+        deny(f"{path.parts[-2]}/{path.name} holds the user's Apex rules; only the user changes it.")
+        return
+    root = find_root(cwd)
+    if root is None:
+        return
+    try:
+        allow = load_scope(root)
+    except ValueError as error:
+        deny(f"{error}. Ask the user to fix it before editing files.")
+        return
+    if allow is None:
+        return
+    try:
+        relative = path.relative_to(root).as_posix()
+    except ValueError:
+        deny(f"{path} is outside the project; the approved scope covers only {root}. Ask the user.")
+        return
+    if not in_scope(relative, allow):
+        deny(f"{relative} is outside the approved scope (.apex/scope.json allows: {', '.join(allow)}). "
+             "Do not work around this; ask the user whether this file may be changed.")
 
 
 def main(argv=None):
@@ -179,6 +309,8 @@ def main(argv=None):
         print(f"usage: {Path(__file__).name} baseline|stop|guard", file=sys.stderr)
         return 1
     handler(event)
+    if OUTPUT:
+        print(json.dumps(OUTPUT, ensure_ascii=False))
     return 0
 
 
