@@ -118,17 +118,32 @@ class InstallationTests(unittest.TestCase):
         installer.configure(self.home, "uninstall", "claude")
         self.assertEqual(json.loads(settings.read_text()), user)
 
-    def test_claude_install_carries_the_vendored_planning_skills(self):
-        vendored = sorted(p.name for p in installer.SPEC_SKILLS.glob("kiro-*") if p.is_dir())
-        self.assertTrue(vendored, "no cc-sdd skills are vendored under Claude/skills")
+    def test_claude_install_carries_every_vendored_skill(self):
+        vendored = sorted(installer.vendored_skill_links())
+        self.assertTrue(vendored, "no skills are vendored under Claude/skills")
+        self.assertIn("skills/kiro-impl", vendored)  # the cc-sdd planner
+        self.assertIn("skills/mcp-builder", vendored)  # an Anthropic engineering skill
         installer.configure(self.home, "install", "claude")
         for name in vendored:
-            link = self.home / "skills" / name
-            self.assertEqual(link.resolve(), installer.SPEC_SKILLS / name)
+            link = self.home / name
+            self.assertEqual(link.resolve(), installer.SPEC_SKILLS / Path(name).name)
             self.assertTrue((link / "SKILL.md").is_file(), name)
         installer.configure(self.home, "uninstall", "claude")
         for name in vendored:
-            self.assertFalse((self.home / "skills" / name).exists(), name)
+            self.assertFalse((self.home / name).exists(), name)
+
+    def test_every_vendored_skill_keeps_an_upstream_licence(self):
+        """A vendored copy with no licence anyone can point to is a redistribution problem.
+
+        The cc-sdd skills share one upstream licence, kept as Claude/skills/LICENSE.cc-sdd.
+        Every other vendored skill has to carry its own.
+        """
+        shared = {"kiro": installer.SPEC_SKILLS / "LICENSE.cc-sdd"}
+        for name, source in sorted(installer.vendored_skill_links().items()):
+            covering = next((path for prefix, path in shared.items()
+                             if source.name.startswith(prefix) and path.is_file()), None)
+            own = next(iter(sorted(source.glob("LICENSE*")) + sorted(source.glob("NOTICE*"))), None)
+            self.assertIsNotNone(own or covering, f"{name} has no licence file")
 
     def test_claude_invalid_settings_block_install_before_mutation(self):
         (self.home / "settings.json").write_text("{broken")

@@ -106,8 +106,17 @@ class ReadinessTests(unittest.TestCase):
         self.assertTrue((self.home / "skills/apex-engineering/SKILL.md").is_file())
 
     def test_all_local_markdown_references_resolve_within_package(self):
+        """Apex's own documentation only.
+
+        Claude/skills holds vendored third-party copies whose wording is upstream's to fix, and
+        whose code samples contain `](...)` that is not a link at all. See
+        Engineering/Integrations/VENDORED_SKILLS.md.
+        """
+        vendored = ROOT / "Claude" / "skills"
         checked = 0
         for document in ROOT.rglob("*.md"):
+            if document.is_relative_to(vendored):
+                continue
             for target in re.findall(r"\]\(([^)]+)\)", document.read_text()):
                 if "://" in target or target.startswith("#"):
                     continue

@@ -32,13 +32,15 @@ CLAUDE_TEXT = (
 SPEC_SKILLS = SOURCE / "Claude" / "skills"
 
 
-def spec_skill_links():
-    """The vendored cc-sdd planning skills, so a global Apex install carries them along.
+def vendored_skill_links():
+    """Third-party skills kept under Claude/skills/, so a global Apex install carries them.
 
-    See Engineering/Integrations/SPEC_PLANNING.md: they plan the steps, Apex's hooks enforce.
+    Each one keeps its upstream licence beside it. See Engineering/Integrations/VENDORED_SKILLS.md
+    for what is taken, from where, and under which terms.
     """
     return {f"skills/{path.name}": path
-            for path in sorted(SPEC_SKILLS.glob("kiro-*")) if path.is_dir()}
+            for path in sorted(SPEC_SKILLS.iterdir())
+            if path.is_dir() and (path / "SKILL.md").is_file()}
 
 
 HOSTS = {
@@ -50,7 +52,7 @@ HOSTS = {
                "links": {"skills/apex-engineering": SOURCE,
                          "agents/apex-coding.md": SOURCE / "Claude" / "agents" / "apex-coding.md",
                          "agents/apex-reviewer.md": SOURCE / "Claude" / "agents" / "apex-reviewer.md",
-                         **spec_skill_links()}},
+                         **vendored_skill_links()}},
 }
 
 

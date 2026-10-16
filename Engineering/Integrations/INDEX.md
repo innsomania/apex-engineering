@@ -11,6 +11,7 @@ Use only the playbook needed by the current task. Check actual availability and 
 | Destructive shell commands and secret reads | [Execution guard](EXECUTION_GUARD.md) | cc-safety-net; damage-control and Boucle rejected |
 | Step lists and file boundaries before implementation | [Spec planning](SPEC_PLANNING.md) | cc-sdd; spec-kit, superpowers, BMAD, Pimzino rejected |
 | Test-first order during implementation | [Test-first guard](TEST_FIRST_GUARD.md) | tdd-guard |
+| Which third-party skills ship with a global Apex install | [Vendored skills](VENDORED_SKILLS.md) | cc-sdd skills; Anthropic Apache-2.0 skills |
 | Browser and web evidence | [Browser and research](BROWSER_AND_RESEARCH.md) | Playwright MCP, CLI, engine, Browser Use, Crawl4AI, Firecrawl, SearXNG, Tavily MCP, GPT Researcher |
 | Document and source-code evidence | [Documents and code](DOCUMENTS_AND_CODE.md) | Docling, Docling MCP, MarkItDown, Unstructured, Serena/SolidLSP, Tree-sitter, SCIP |
 | State, evaluations, supplementary filters | [State and evaluation](STATE_AND_EVALUATION.md) | Pydantic, LangGraph, promptfoo, NeMo Guardrails, Presidio, garak; LLM Guard exclusion |
