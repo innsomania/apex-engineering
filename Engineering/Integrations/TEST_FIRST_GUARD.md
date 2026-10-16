@@ -11,7 +11,7 @@ to enforce the order.
 | Version observed | 1.7.0 |
 | License | MIT |
 | Decision mechanism | a model call, not parsing |
-| Status on this host | verified in a throwaway project; **not installed** |
+| Status on this host | **installed globally, enabled everywhere** (plugin `tdd-guard@tdd-guard`) |
 
 ## What it does
 
@@ -68,12 +68,28 @@ guard is a deviation from the user's instruction and the reviewer should treat i
 
 ## Installation
 
-Not installed by `install.py`. The shipped hook command is `npx tdd-guard@latest`, which resolves
-the newest published release on every tool call; pin the version instead:
+Installed as a user-scope Claude Code plugin, enabled for every project. Evidence:
+[global-install-2026-10-16.log](../../Test/evidence/global-install-2026-10-16.log).
 
 ```bash
-npx tdd-guard@1.7.0
+claude plugin marketplace add nizos/tdd-guard
+claude plugin install tdd-guard@tdd-guard --scope user
 ```
 
-Enable it per project, not globally: it only makes sense where the project is actually developed
-test-first, and this repository's own suite is not.
+The plugin wraps `npx tdd-guard@latest`, so each call may resolve a newly published release.
+
+**It needs an authenticated model on every implementation edit.** Measured here: the same edit
+that fixed the `tomllib` import came back as
+`{"decision":"block","reason":"Error during validation: Not logged in · Please run /login"}`. That
+is the fail-closed path, not a TDD judgement — the guard could not reach a model, so it denied the
+edit. An authenticated session should not hit this, but a session that loses authentication will
+refuse every implementation edit until the guard is turned off:
+
+```bash
+claude plugin disable tdd-guard@tdd-guard
+```
+
+Sending `tdd-guard off` as a message disables it for the session without uninstalling.
+
+**No reporter here.** It ships reporters for vitest, jest, storybook and pytest; this repository's
+suite is `unittest`, so the guard sees no test results and judges from the diff alone.

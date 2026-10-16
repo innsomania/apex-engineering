@@ -1,0 +1,11 @@
+{
+  "session_id": "probe",
+  "transcript_path": "/Users/<user>/Desktop/Apex Engineering/.claude/worktrees/focus-motivation-38a313/t.jsonl",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Edit",
+  "tool_input": {
+    "file_path": "/Users/<user>/Desktop/Apex Engineering/.claude/worktrees/focus-motivation-38a313/Engineering/mcp_doctor.py",
+    "old_string": "MAX_TOOLS = 1_024",
+    "new_string": "MAX_TOOLS = 2_048"
+  }
+}

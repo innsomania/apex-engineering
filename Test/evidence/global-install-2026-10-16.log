@@ -1,0 +1,32 @@
+Global component installation — 2026-10-16
+Host: Darwin 24.6.0 x86_64, node v24.21.0, claude CLI 2.1.301
+Decision: every component reaches the hosts through the global Apex install.
+
+-- cc-safety-net 2.6.12
+   Claude Code plugin, scope user, enabled. doctor: Detected/Configured/Verified.
+   Test/test_safety_net.py runs against it and passes.
+
+-- cc-sdd 3.1.0
+   Not run per project. Its 17 skills are vendored under Claude/skills/ and
+   install.py links each into ~/.claude/skills/. Its project-root CLAUDE.md and
+   .kiro templates are deliberately not taken.
+   Test/test_install.py asserts the links are made and removed again.
+
+-- tdd-guard (plugin 1.3.0, wrapping npx tdd-guard@latest)
+   Claude Code plugin, scope user, enabled everywhere at the user's instruction.
+
+   OPEN RISK, measured here, not resolved:
+   A real edit in this repository was put to the guard and came back
+     {"decision":"block","reason":"Error during validation: Not logged in · Please run /login"}
+   The refusal is not a TDD judgement. The guard could not reach a model, and it
+   fails closed, so it denied the edit. A 'Claude Code-credentials' keychain entry
+   exists, so an authenticated desktop session may well succeed; this sandboxed
+   shell cannot read the keychain and so cannot prove it either way.
+
+   If code edits start being refused with a login message, turn it off by sending
+   'tdd-guard off' as a message, or remove it with:
+     claude plugin disable tdd-guard@tdd-guard
+
+   Second limit: this repository's suite is unittest, and tdd-guard ships reporters
+   for vitest, jest, storybook and pytest. Without a reporter it has no test results
+   to reason about, so its judgement here rests on the diff alone.
