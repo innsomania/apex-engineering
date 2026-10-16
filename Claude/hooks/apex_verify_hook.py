@@ -348,6 +348,9 @@ def stop(event):
     current = fingerprint(root)
     if current is not None and current in (state.get("baseline"), state.get("passed")):
         return  # nothing changed this turn, or this exact tree already passed
+    if current is not None and state.get("verified") == current:
+        finish(root, path, state, current, event)  # checks passed in a subagent; review still due
+        return
     notices = []
     try:
         allow = load_scope(root)
@@ -398,7 +401,12 @@ def stop(event):
 
 def finish(root, path, state, current, event):
     """Checks passed; the main turn still needs a review when the project asks for one."""
-    if event.get("hook_event_name") != "SubagentStop" and not require_review(root, path, state, current):
+    state["verified"] = current
+    if event.get("hook_event_name") == "SubagentStop":
+        state["failures"] = 0
+        write_state(path, state)
+        return
+    if not require_review(root, path, state, current):
         return
     state.update({"passed": current, "failures": 0})
     write_state(path, state)
@@ -407,6 +415,17 @@ def finish(root, path, state, current, event):
 def deny(reason):
     emit({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                  "permissionDecisionReason": reason}})
+
+
+def claude_own_file(path):
+    """Claude Code's plan and memory files, which live outside every project."""
+    claude = (Path.home() / ".claude").resolve()
+    try:
+        parts = path.relative_to(claude).parts
+    except ValueError:
+        return False
+    return (len(parts) >= 2 and parts[0] == "plans") or (
+        len(parts) >= 4 and parts[0] == "projects" and parts[2] == "memory")
 
 
 def guard(event):
@@ -433,6 +452,8 @@ def guard(event):
     try:
         relative = path.relative_to(root).as_posix()
     except ValueError:
+        if claude_own_file(path):
+            return
         deny(f"{path} is outside the project; the approved scope covers only {root}. Ask the user.")
         return
     if not in_scope(relative, allow):

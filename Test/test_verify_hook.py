@@ -43,9 +43,11 @@ class VerifyHookTests(unittest.TestCase):
     def hook(self, mode, **event):
         event.setdefault("session_id", "s1")
         event.setdefault("cwd", str(self.project))
+        env = {**os.environ, "APEX_HOOK_STATE_DIR": str(self.state)}
+        if "_home" in event:
+            env["HOME"] = event.pop("_home")
         result = subprocess.run([sys.executable, str(HOOK), mode], input=json.dumps(event),
-                                capture_output=True, text=True, timeout=60,
-                                env={**os.environ, "APEX_HOOK_STATE_DIR": str(self.state)})
+                                capture_output=True, text=True, timeout=60, env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout) if result.stdout.strip() else None
 
@@ -127,6 +129,17 @@ class VerifyHookTests(unittest.TestCase):
                        ".apex/scope.json"):
             result = self.edit(target if target.startswith("/") else str(self.project / target))
             self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", target)
+
+    def test_guard_allows_claude_code_plan_and_memory_files(self):
+        self.scope("src/")
+        home = Path(self.temp.name) / "home"
+        for target in (home / ".claude" / "plans" / "plan.md",
+                       home / ".claude" / "projects" / "p" / "memory" / "note.md"):
+            self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Write",
+                                        tool_input={"file_path": str(target)}, _home=str(home)), target)
+        denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Write",
+                           tool_input={"file_path": str(home / ".claude" / "settings.json")}, _home=str(home))
+        self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
 
     def test_shell_change_outside_scope_blocks_stop(self):
         self.scope("src/")
@@ -225,6 +238,15 @@ class VerifyHookTests(unittest.TestCase):
         self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
                   agent_transcript_path=self.reviewer_transcript(("text", "Looks fine to me.")))
         self.assertIn("no APEX-REVIEW verdict", self.hook("stop", hook_event_name="Stop")["reason"])
+
+    def test_coding_subagent_pass_does_not_skip_the_main_review(self):
+        self.review_ready()
+        self.assertIsNone(self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-coding"))
+        self.assertEqual(self.run_count(), 1)
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn('subagent_type "apex-reviewer"', result["reason"])
+        self.assertEqual(self.run_count(), 1)  # the verified tree is not checked twice
 
     def test_ignored_review_request_is_reported_to_the_user(self):
         self.review_ready()
