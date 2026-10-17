@@ -1,5 +1,7 @@
 # Apex Engineering — MVP Design
 
+> **Status: historical record.** This describes the original Codex-only MVP scope. Claude Code support, the verification, scope, and review hooks, the task ledger, and the integration playbooks all landed after it was written, so its "Initial exclusions" no longer hold. For current behavior read [SKILL.md](../SKILL.md) and [docs/INSTALL.md](INSTALL.md).
+
 ## Purpose
 
 Apex Engineering is a software engineering agent configuration for global use in Codex and Codex CLI. It supports development tasks from understanding the request through implementation and verification. Initial technology coverage includes C#, .NET, React, React Native, Dart, Swift, SwiftUI, and C++. It provides expertise references and workflows on top of existing Codex tools.
@@ -42,7 +44,7 @@ Source files remain in this repository. `install.py` links `skills/apex-engineer
 - A development task demonstrates relevant module selection and focused verification.
 - Installation preserves existing instructions and supports removal.
 
-These criteria cover the original MVP. They do not establish mandatory model containment. The next phase is described in [Engineering/BRAIN_DESIGN.md](Engineering/BRAIN_DESIGN.md).
+These criteria cover the original MVP. They do not establish mandatory model containment. The next phase is described in [Engineering/BRAIN_DESIGN.md](../Engineering/BRAIN_DESIGN.md).
 
 ## Initial exclusions
 
