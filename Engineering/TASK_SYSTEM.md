@@ -2,18 +2,20 @@
 
 Use [tasks.py](tasks.py) for durable multi-step software work, explicit task tracking, or work that will resume across sessions. Small one-step questions do not require a task record. The ledger is local SQLite, using Python's standard library; no database service or model API is required. Markdown boards are generated views of that ledger.
 
-## Current Apex locations
+## Locations
 
-- Tool: `/Users/<user>/Desktop/Apex Engineering/Engineering/tasks.py`
-- Ledger: `/Users/<user>/Desktop/Apex Engineering/Engineering/Tasks/apex.sqlite3`
+Paths are relative to this skill directory, wherever it is installed.
+
+- Tool: `Engineering/tasks.py`
+- Ledger: `Engineering/Tasks/apex.sqlite3`
 - Project label: `Apex Engineering`
-- Obsidian board: `/Users/<user>/Opsidian/Apex Tasks.md`, refreshed automatically after every ledger change (configured in `Engineering/Tasks/apex.board.json`)
+- Obsidian board: optional and per machine. Configure it in `Engineering/Tasks/apex.board.json`, which is untracked; when that file exists the board is refreshed after every ledger change.
 
 The ledger contains the authoritative task state and event history. Export is an explicit snapshot, not continuous synchronization. Read the ledger when resuming; do not infer live state from an old board. Keep unrelated projects in distinct project labels or separate ledgers. Never overwrite an existing ledger to initialize a session.
 
 ## Automatic board refresh
 
-A ledger at `NAME.sqlite3` refreshes its Markdown board when `NAME.board.json` exists beside it, for example `{"output": "/Users/<user>/Opsidian/Apex Tasks.md", "project": "Apex Engineering"}`. Every committed `create`, `assign`, lifecycle transition, and `evidence` command then re-exports the board; `project` is optional. A board failure (such as an unowned destination note) never undoes the task change: the CLI prints a warning on stderr and the ledger stays authoritative. Without the config file nothing is exported automatically, and `export` remains available for manual snapshots.
+A ledger at `NAME.sqlite3` refreshes its Markdown board when `NAME.board.json` exists beside it, for example `{"output": "<your-vault>/Apex Tasks.md", "project": "Apex Engineering"}`. Every committed `create`, `assign`, lifecycle transition, and `evidence` command then re-exports the board; `project` is optional. A board failure (such as an unowned destination note) never undoes the task change: the CLI prints a warning on stderr and the ledger stays authoritative. Without the config file nothing is exported automatically, and `export` remains available for manual snapshots.
 
 ## Task contract
 
@@ -59,7 +61,7 @@ python3 Engineering/tasks.py --store Engineering/Tasks/apex.sqlite3 review TASK_
 python3 Engineering/tasks.py --store Engineering/Tasks/apex.sqlite3 evidence TASK_ID --criterion 1 --result pass --file /absolute/path/to/test-result.log --summary 'Observed relevant regression result' --reviewer Test
 python3 Engineering/tasks.py --store Engineering/Tasks/apex.sqlite3 evidence TASK_ID --criterion 2 --result pass --file /absolute/path/to/denial-result.log --summary 'Observed relevant denial result' --reviewer Security
 python3 Engineering/tasks.py --store Engineering/Tasks/apex.sqlite3 complete TASK_ID
-python3 Engineering/tasks.py --store Engineering/Tasks/apex.sqlite3 export --project 'Apex Engineering' --output '/Users/<user>/Opsidian/Apex Tasks.md'
+python3 Engineering/tasks.py --store Engineering/Tasks/apex.sqlite3 export --project 'Apex Engineering' --output '<your-vault>/Apex Tasks.md'
 ```
 
 These are usage examples, not instructions to invent test logs. Store actual evidence in a durable location; temporary evidence may disappear before completion. A failing or missing criterion keeps a task incomplete. The tool verifies recorded results and file integrity; a human or agent must evaluate whether the evidence actually supports the criterion. It does not execute tests or judge arbitrary prose.

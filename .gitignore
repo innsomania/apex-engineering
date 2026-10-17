@@ -28,3 +28,4 @@ Engineering/Tasks/*.sqlite3
 # Host-local tool state
 .claude/
 .playwright-mcp/
+Engineering/Tasks/*.board.json

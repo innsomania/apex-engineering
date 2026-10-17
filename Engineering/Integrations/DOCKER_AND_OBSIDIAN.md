@@ -12,11 +12,11 @@ Current status: Docker usage guidance only. No containers, daemon settings, Comp
 
 ## Obsidian: project knowledge navigation
 
-User-designated vault: `/Users/<user>/Opsidian`. The directory and its `.obsidian` configuration directory were observed on October 15, 2026. This establishes a filesystem location, not proof that the app is currently running.
+The vault is a per-machine location the user designates; Apex assumes none. Resolve the vault path and confirm its `.obsidian` configuration directory in the session. Finding the directory establishes a filesystem location, not proof that the app is currently running.
 
 Obsidian operates on local Markdown files and links. Use it to navigate engineering decisions, research, and verified lessons. [Obsidian overview](https://help.obsidian.md/obsidian)
 
-Keep the Apex skill source authoritative in `/Users/<user>/Desktop/Apex Engineering`. The vault entry note should point to that source; do not silently duplicate every instruction file. An external directory link is navigation, not a guarantee that Obsidian indexes all source files in its graph.
+Keep the Apex skill source authoritative in its own checkout. The vault entry note should point to that source; do not silently duplicate every instruction file. An external directory link is navigation, not a guarantee that Obsidian indexes all source files in its graph.
 
 ### Read and write procedure
 
@@ -30,4 +30,4 @@ Use standard Markdown links and portable prose for new notes. Obsidian is option
 
 This integration provides file-based knowledge navigation. It does not implement live app control, automatic synchronization, semantic memory, or a search index.
 
-The [task system](../TASK_SYSTEM.md) exports a real Markdown task board to `/Users/<user>/Opsidian/Apex Tasks.md`. The ledger refreshes that snapshot automatically after every change (see the task system's automatic board refresh). Existing unrelated vault notes are preserved; task changes belong in the ledger, not the generated board.
+The [task system](../TASK_SYSTEM.md) exports a Markdown task board to the vault note named in its board configuration. The ledger refreshes that snapshot automatically after every change (see the task system's automatic board refresh). Existing unrelated vault notes are preserved; task changes belong in the ledger, not the generated board.
