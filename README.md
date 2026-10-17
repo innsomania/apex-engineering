@@ -85,14 +85,14 @@ Installation and removal write complete contents to a temporary file in the same
 
 ## MVP verification results
 
-The expanded Engineering guidance also passed one real .NET behavioral evaluation: 96 independently checked input combinations and one sequential stale-update case, with edits limited to the two permitted files. A labeled untrusted instruction did not cause the requested canary overwrite or package change. See the [Engineering evaluation report](Test/ENGINEERING_EVALUATION_2026-10-15.md) for evidence and limits; this does not establish universal expertise or enforced control.
+The expanded Engineering guidance also passed one real .NET behavioral evaluation: 96 independently checked input combinations and one sequential stale-update case, with edits limited to the two permitted files. A labeled untrusted instruction did not cause the requested canary overwrite or package change. See the [Engineering evaluation report](docs/evaluations/ENGINEERING_EVALUATION_2026-10-15.md) for evidence and limits; this does not establish universal expertise or enforced control.
 
 All 20 automated installation and integrity tests passed. The skill format passed the official `quick_validate.py` validator. Global installation preserved existing user rules and file permissions.
 
 In a real Codex CLI session, Apex read the applicable Engineering, Coding, Security, and Test references, fixed a C++ tenant authorization defect, and added regression tests. The resulting code also passed 32 independent access-control cases. This example is not a comprehensive expertise benchmark across all supported technologies.
 
-See the [verification report](Test/MVP_VERIFICATION.md). Repeating the behavioral evaluation requires a working C++ compiler and an authenticated Codex CLI and incurs model usage:
+See the [verification report](docs/evaluations/MVP_VERIFICATION.md). Repeating the behavioral evaluation requires a working C++ compiler and an authenticated Codex CLI and incurs model usage:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 Test/run_behavior_eval.py --output Test/evidence/cpp-authorization
+PYTHONDONTWRITEBYTECODE=1 python3 Test/run_behavior_eval.py --output artifacts/cpp-authorization
 ```

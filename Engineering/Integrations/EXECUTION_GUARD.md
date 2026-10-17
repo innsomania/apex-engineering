@@ -22,7 +22,7 @@ wrapping or reordering does not hide the operation.
 ## Verified behavior
 
 Run against the published `dist` with Claude Code `PreToolUse` payloads. Evidence:
-[execution-guard-2026-10-16.log](../../Test/evidence/execution-guard-2026-10-16.log).
+[execution-guard-2026-10-16.log](../../docs/evaluations/evidence/execution-guard-2026-10-16.log).
 
 | Input command | Observed decision |
 | --- | --- |
@@ -59,7 +59,7 @@ stops the call, so they compose; neither weakens the other.
 ## Installation
 
 Installed on this host on 2026-10-16 as a Claude Code plugin. Evidence:
-[execution-guard-install-2026-10-16.log](../../Test/evidence/execution-guard-install-2026-10-16.log).
+[execution-guard-install-2026-10-16.log](../../docs/evaluations/evidence/execution-guard-install-2026-10-16.log).
 
 ```bash
 npx cc-safety-net@2.6.12 install --claude-code

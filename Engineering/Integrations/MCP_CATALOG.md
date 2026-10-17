@@ -17,7 +17,7 @@ The GitHub server binary came from the official v2.0.2 release. Its downloaded x
 
 The Context7 remote URL initiated OAuth during configuration, so this host uses its pinned local STDIO package for anonymous basic access. The local package's actual documentation query succeeded. Microsoft Learn and OpenAI Docs are public read-only services. Playwright and MarkItDown execute locally with the current host's permissions; neither creates a host sandbox.
 
-Evidence: [browser navigation](../../Test/evidence/mcp-playwright-live-2026-10-15.jsonl), [four core read calls](../../Test/evidence/mcp-core-live-2026-10-15.jsonl), and [document conversion plus browser interaction](../../Test/evidence/mcp-document-browser-live-2026-10-15.jsonl). The first browser attempt used a temporary read-only Codex sandbox and was denied by the host's `never` approval policy; the normal global permission mode succeeded. That failed attempt was replaced in the browser evidence file and remains described here, not counted as a browser failure.
+Evidence: [browser navigation](../../docs/evaluations/evidence/mcp-playwright-live-2026-10-15.jsonl), [four core read calls](../../docs/evaluations/evidence/mcp-core-live-2026-10-15.jsonl), and [document conversion plus browser interaction](../../docs/evaluations/evidence/mcp-document-browser-live-2026-10-15.jsonl). The first browser attempt used a temporary read-only Codex sandbox and was denied by the host's `never` approval policy; the normal global permission mode succeeded. That failed attempt was replaced in the browser evidence file and remains described here, not counted as a browser failure.
 
 ## Conditional connections, not globally active
 

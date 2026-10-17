@@ -25,7 +25,7 @@ a file under `.kiro/specs/`. Two of those files are what Apex is missing:
 ## Verified behavior
 
 Installed into an empty git repository. Evidence:
-[spec-planning-2026-10-16.log](../../Test/evidence/spec-planning-2026-10-16.log).
+[spec-planning-2026-10-16.log](../../docs/evaluations/evidence/spec-planning-2026-10-16.log).
 
 | Observation | Result |
 | --- | --- |

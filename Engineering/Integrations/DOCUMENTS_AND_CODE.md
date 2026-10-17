@@ -27,4 +27,4 @@ Start with read operations for Engineering analysis. Give editing tools only the
 
 For C#/.NET, React, React Native, Dart, Swift/SwiftUI, and C++, verify the actual project's language server and compiler configuration. Test a known definition, reference, and cross-file relationship before depending on results. Missing symbols are not proof of no dependency. C++ compile flags, platform-specific mobile code, macros, and runtime dependency injection need additional evidence.
 
-Review the [Serena licensing finding](../Research/GITHUB_RESEARCH_2026-10-15.md) before embedding or distributing it. Use the MIT SolidLSP component or full Serena deliberately; do not claim all of Serena is MIT.
+Review the [Serena licensing finding](../../docs/research/GITHUB_RESEARCH_2026-10-15.md) before embedding or distributing it. Use the MIT SolidLSP component or full Serena deliberately; do not claim all of Serena is MIT.

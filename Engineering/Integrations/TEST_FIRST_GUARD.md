@@ -21,7 +21,7 @@ vitest, jest and storybook.
 
 ## Verified behavior
 
-Evidence: [test-first-guard-2026-10-16.log](../../Test/evidence/test-first-guard-2026-10-16.log).
+Evidence: [test-first-guard-2026-10-16.log](../../docs/evaluations/evidence/test-first-guard-2026-10-16.log).
 The model endpoint was pointed at an unreachable local address, so no prompt content left the
 machine and no model was billed.
 
@@ -69,7 +69,7 @@ guard is a deviation from the user's instruction and the reviewer should treat i
 ## Installation
 
 Installed as a user-scope Claude Code plugin, enabled for every project. Evidence:
-[global-install-2026-10-16.log](../../Test/evidence/global-install-2026-10-16.log).
+[global-install-2026-10-16.log](../../docs/evaluations/evidence/global-install-2026-10-16.log).
 
 ```bash
 claude plugin marketplace add nizos/tdd-guard
@@ -102,7 +102,7 @@ pytest at `Test/`. The suite stays plain `unittest` and `.apex/verify.json` stil
 ```
 
 Measured afterwards — evidence:
-[test-first-enforcing-2026-10-17.log](../../Test/evidence/test-first-enforcing-2026-10-17.log).
+[test-first-enforcing-2026-10-17.log](../../docs/evaluations/evidence/test-first-enforcing-2026-10-17.log).
 
 | Edit | Decision |
 | --- | --- |

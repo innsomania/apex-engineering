@@ -22,4 +22,4 @@ Derive cases from user-visible outcomes and abuse paths, not instruction wording
 
 Use deterministic observation for side effects, denial, and file integrity. LLM judges can assist subjective review but cannot prove enforcement. Compare like-for-like model settings and tasks where possible. Redact sensitive evaluation data and distinguish local tooling from paid providers.
 
-The [Engineering behavior scenarios](../../Test/ENGINEERING_SCENARIOS.md) are a manual evaluation specification, not a report of passing runs. Do not mark them passed without executing and inspecting the stated evidence.
+The [Engineering behavior scenarios](../../docs/evaluations/ENGINEERING_SCENARIOS.md) are a manual evaluation specification, not a report of passing runs. Do not mark them passed without executing and inspecting the stated evidence.

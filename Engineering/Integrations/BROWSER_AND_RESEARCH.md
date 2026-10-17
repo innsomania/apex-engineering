@@ -9,9 +9,9 @@
 
 Before browsing, identify the relevant destination, profile/session, read versus mutation permissions, and evidence to capture. Inspect actual UI state before interacting. Verify the resulting page/state before reporting success. Keep user account state separate from disposable automation profiles.
 
-On this host, the global `playwright` MCP server uses pinned `@playwright/mcp@0.0.83` with `--headless --isolated`. A Codex CLI session navigated to `https://example.com` and observed the title, then used a separate public TodoMVC page to add a todo and read its visible text. See the [capability catalog](MCP_CATALOG.md) and [live evidence](../../Test/evidence/mcp-document-browser-live-2026-10-15.jsonl). Confirm the tool is present in each new session; the existing desktop `cua_repl` route was not verified by these CLI checks.
+On this host, the global `playwright` MCP server uses pinned `@playwright/mcp@0.0.83` with `--headless --isolated`. A Codex CLI session navigated to `https://example.com` and observed the title, then used a separate public TodoMVC page to add a todo and read its visible text. See the [capability catalog](MCP_CATALOG.md) and [live evidence](../../docs/evaluations/evidence/mcp-document-browser-live-2026-10-15.jsonl). Confirm the tool is present in each new session; the existing desktop `cua_repl` route was not verified by these CLI checks.
 
-Playwright MCP does not provide a security boundary; its origin controls are insufficient as a general network restriction. Check the [research caveats](../Research/GITHUB_RESEARCH_2026-10-15.md) and enforce required network restrictions outside the browser tool.
+Playwright MCP does not provide a security boundary; its origin controls are insufficient as a general network restriction. Check the [research caveats](../../docs/research/GITHUB_RESEARCH_2026-10-15.md) and enforce required network restrictions outside the browser tool.
 
 ## Research selection
 

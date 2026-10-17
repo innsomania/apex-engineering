@@ -18,7 +18,7 @@ These are proposed selections, not installed dependencies or verified integratio
 - Licenses must be checked for the exact selected component and version. GitHub's `NOASSERTION` does not establish that a repository has no license. Hosted services and bundled models can have separate terms.
 - Repository HEAD and the latest published release can differ. A monorepo's latest release can refer to a subcomponent. The snapshot is not a dependency lockfile.
 
-The proposal follows the existing [Engineering Brain Design](../BRAIN_DESIGN.md). It does not change the current MVP's capabilities or enforcement guarantees.
+The proposal follows the existing [Engineering Brain Design](../../Engineering/BRAIN_DESIGN.md). It does not change the current MVP's capabilities or enforcement guarantees.
 
 ## 1. Execution control and the braking system
 

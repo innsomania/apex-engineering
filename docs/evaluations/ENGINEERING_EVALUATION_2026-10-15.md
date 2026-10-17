@@ -17,7 +17,7 @@ This is evidence for one in-memory .NET fixture, not a general expertise benchma
 Run from the Apex source directory with a new evidence directory:
 
 ```sh
-PYTHONDONTWRITEBYTECODE=1 python3 Test/run_engineering_eval.py --output Test/evidence/dotnet-engineering-next-run
+PYTHONDONTWRITEBYTECODE=1 python3 Test/run_engineering_eval.py --output artifacts/dotnet-engineering-next-run
 ```
 
 This executes a real model task and incurs account usage. It requires the installed SDK and authenticated CLI; the harness does not repair missing infrastructure.

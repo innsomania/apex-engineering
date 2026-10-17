@@ -18,7 +18,7 @@ Use only the playbook needed by the current task. Check actual availability and 
 | Public agent instruction methods | [Codex and Claude patterns](AGENT_INSTRUCTION_PATTERNS.md) | Official public guidance; no private model prompts |
 | Containers and knowledge notes | [Docker and Obsidian](DOCKER_AND_OBSIDIAN.md) | Existing environment and user-designated vault |
 
-The [research report](../Research/GITHUB_RESEARCH_2026-10-15.md) contains the comparative rationale, source links, license caveats, and version snapshot for all 29 repositories. Revalidate version-dependent instructions before a future installation.
+The [research report](../../docs/research/GITHUB_RESEARCH_2026-10-15.md) contains the comparative rationale, source links, license caveats, and version snapshot for all 29 repositories. Revalidate version-dependent instructions before a future installation.
 
 The execution guard was selected after that report and is recorded in its own playbook with the observed decisions behind the selection.
 

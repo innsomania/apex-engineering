@@ -68,4 +68,4 @@ Run the fake-executable tests; they do not invoke a real model:
 python3 -m unittest Test.test_coding_bridge -v
 ```
 
-Observed on October 15, 2026: [7 focused bridge tests passed](../Test/evidence/coding-bridge-unit-2026-10-15.log). A [live isolated project run](../Test/evidence/coding-bridge-live-postfix-2026-10-15.json) used `gpt-6-luna` with `xhigh`, changed one fixture file, completed two turns with the same Codex thread ID, passed the independently run focused test, and ended in `stopped`. These results cover the tested macOS CLI path and fixture; they do not prove correctness for every project or tool route.
+Observed on October 15, 2026: [7 focused bridge tests passed](../docs/evaluations/evidence/coding-bridge-unit-2026-10-15.log). A [live isolated project run](../docs/evaluations/evidence/coding-bridge-live-postfix-2026-10-15.json) used `gpt-6-luna` with `xhigh`, changed one fixture file, completed two turns with the same Codex thread ID, passed the independently run focused test, and ended in `stopped`. These results cover the tested macOS CLI path and fixture; they do not prove correctness for every project or tool route.

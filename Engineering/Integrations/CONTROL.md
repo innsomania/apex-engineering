@@ -15,7 +15,7 @@
 
 Enumerate all paths to the protected effect. Locate the policy outside model-writable state. Normalize action arguments and canonical targets; evaluate before dispatch. Bind approval to the action, target, and task, rather than trusting an approval string supplied by the model. Deny on unavailable or malformed authorization results.
 
-For a gateway, verify identity and authorization on calls as well as discovery. Check session/route isolation and the security advisory documented in the [research report](../Research/GITHUB_RESEARCH_2026-10-15.md). For a process wrapper, test child-process coverage, filesystem escape paths, sensitive reads, and network egress on the selected OS/release.
+For a gateway, verify identity and authorization on calls as well as discovery. Check session/route isolation and the security advisory documented in the [research report](../../docs/research/GITHUB_RESEARCH_2026-10-15.md). For a process wrapper, test child-process coverage, filesystem escape paths, sensitive reads, and network egress on the selected OS/release.
 
 Observe actual denied side effects and independent state, not a model statement that it complied. Include the allowed case so overblocking is visible. Keep stop handling on a trusted path. Do not present this recipe as an implemented dispatcher.
 

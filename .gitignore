@@ -1,7 +1,30 @@
+# Python
 __pycache__/
 *.pyc
-.DS_Store
-.playwright-mcp/
-Engineering/Tasks/*.sqlite3
-.claude/
+*.egg-info/
 .venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Evaluation runs (regenerate with Test/run_*_eval.py --output)
+artifacts/
+
+# Local task ledger
+Engineering/Tasks/*.sqlite3
+
+# Build output from .NET evaluation fixtures
+[Bb]in/
+[Oo]bj/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Host-local tool state
+.claude/
+.playwright-mcp/
