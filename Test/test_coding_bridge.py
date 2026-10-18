@@ -74,6 +74,49 @@ def _unix_sockets_allowed():
 
 @unittest.skipUnless(_unix_sockets_allowed(),
                      "Unix sockets are blocked here (Claude Code sandbox); run outside the sandbox")
+class StartupOutcomeTests(unittest.TestCase):
+    """The startup handshake reads a state the supervisor may already have moved on from.
+
+    A first turn that fails immediately also sets phase "failed", so deciding
+    from the phase alone reports a started session as a startup failure. That
+    race only shows up when the child exits before the first status poll, which
+    one CI runner did and four local interpreters did not, so the decision is
+    checked directly here rather than left to timing.
+    """
+
+    def test_launched_turn_counts_as_started_whatever_the_phase_became(self):
+        for phase in ("running", "idle", "failed", "stopped"):
+            with self.subTest(phase=phase):
+                self.assertEqual(
+                    bridge._startup_outcome({"startup_complete": True, "phase": phase}),
+                    "started")
+
+    def test_failure_before_a_turn_launched_is_a_startup_failure(self):
+        self.assertEqual(
+            bridge._startup_outcome({"startup_complete": False, "phase": "failed"}),
+            "failed")
+
+    def test_starting_is_neither_until_the_supervisor_says_so(self):
+        self.assertEqual(
+            bridge._startup_outcome({"startup_complete": False, "phase": "starting"}),
+            "pending")
+
+    def test_a_state_written_before_the_field_existed_still_reads(self):
+        self.assertEqual(bridge._startup_outcome({"phase": "running"}), "started")
+        self.assertEqual(bridge._startup_outcome({"phase": "failed"}), "failed")
+
+    def test_a_new_session_has_not_started_yet(self):
+        state = bridge._new_state("abc123abc123", Path("/tmp/p"),
+                                  {"id": "APX-" + "0" * 32}, "sha", Path("/tmp/r"))
+        self.assertEqual(bridge._startup_outcome(state), "pending")
+
+    def test_the_caller_can_see_the_field_over_the_control_socket(self):
+        state = bridge._new_state("abc123abc123", Path("/tmp/p"),
+                                  {"id": "APX-" + "0" * 32}, "sha", Path("/tmp/r"))
+        state["startup_complete"] = True
+        self.assertTrue(bridge._public_state(state)["startup_complete"])
+
+
 class CodingBridgeTests(unittest.TestCase):
     def setUp(self):
         # A short base keeps Unix socket paths within macOS sun_path limits. Prefer a short

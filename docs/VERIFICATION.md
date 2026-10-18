@@ -9,7 +9,7 @@ reading this file.
 
 | Check | Result |
 | --- | --- |
-| `python3 -m unittest discover -s Test -p 'test_*.py'` | 116 tests pass (observed 2026-10-18). |
+| `python3 -m unittest discover -s Test -p 'test_*.py'` | 122 tests pass (observed 2026-10-18). |
 | `python3 Test/run_live_control_check.py` | 12 of 12 observations pass (observed 2026-10-18, Python 3.14.7). |
 | Installation and integrity tests | Included in the suite above. They run in temporary directories and never touch live Codex or Claude settings. |
 
@@ -94,7 +94,7 @@ wrong in either direction.
 
 The suite and the live check were run directly on four interpreters (observed
 2026-10-18, macOS x86_64): Python 3.11.16, 3.12.10, 3.13.15, and 3.14.7. All
-116 tests and all 12 observations pass on each.
+122 tests and all 12 observations pass on each.
 
 Both were also run from a fresh `git clone` into a temporary directory, with
 installation into isolated host directories, to establish that nothing depends
@@ -103,7 +103,7 @@ on this working tree's untracked state.
 Linux is covered by CI rather than locally. The first CI run (2026-10-18,
 `innsomania/apex-engineering`) passed all ten jobs: lint and types, the suite
 and the live check on Ubuntu and macOS across Python 3.11 to 3.14, and the
-mutation check. On Ubuntu the suite ran 116 tests and the live check reported
+mutation check. On Ubuntu the suite ran 122 tests and the live check reported
 12 of 12, so the gates close on Linux as well as macOS.
 
 Two notes on what this did and did not establish. The first run failed three

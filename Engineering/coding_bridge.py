@@ -113,7 +113,8 @@ def _public_state(state: State) -> State:
         "session_id", "phase", "task_id", "project_path", "codex_thread_id",
         "model", "reasoning_effort", "latest_agent_message", "latest_agent_message_truncated",
         "original_request_sha256", "original_request_snapshot_path",
-        "turn_count", "queue_depth", "discarded_followups", "undelivered_followups",
+        "startup_complete", "turn_count", "queue_depth", "discarded_followups",
+        "undelivered_followups",
         "accepting", "event_log_path", "stderr_log_path", "created_at", "updated_at",
         "last_error", "malformed_event_count",
     )
@@ -313,6 +314,7 @@ def _new_state(session_id: str, project: Path, task: Task, request_sha256: str,
         "reasoning_effort": REASONING_EFFORT,
         "latest_agent_message": "",
         "latest_agent_message_truncated": False,
+        "startup_complete": False,
         "turn_count": 0,
         "queue_depth": 0,
         "discarded_followups": 0,
@@ -326,6 +328,20 @@ def _new_state(session_id: str, project: Path, task: Task, request_sha256: str,
         "last_error": "",
         "malformed_event_count": 0,
     }
+
+
+def _startup_outcome(state: State) -> str:
+    """"started", "failed" or "pending", read from the session's own record.
+
+    A first turn that fails immediately also sets phase "failed", so the phase
+    alone cannot say whether the session started. Only a supervisor that got a
+    turn launched records startup_complete.
+    """
+    if state.get("startup_complete") or state.get("phase") in {"running", "idle"}:
+        return "started"
+    if state.get("phase") == "failed":
+        return "failed"
+    return "pending"
 
 
 def _task_id_path(state_dir: str | Path, session_id: str) -> Path:
@@ -387,21 +403,25 @@ def start_session(project_value: str | Path, task_id: str, store: str | Path, re
             try:
                 response = _rpc(session_dir, {"op": "status"}, timeout=0.25)
                 result_state = response["state"]
-                if result_state.get("phase") == "failed":
-                    raise BridgeError(result_state.get("last_error") or "Codex startup failed")
-                if result_state.get("phase") in {"running", "idle"}:
+                if _startup_outcome(result_state) == "started":
                     return session_id
+                if _startup_outcome(result_state) == "failed":
+                    raise BridgeError(result_state.get("last_error") or "Codex startup failed")
             except BridgeError as error:
                 # A failed supervisor persists state before closing its socket.
                 try:
                     saved = _load_state(session_dir)
                 except BridgeError:
                     saved = None
-                if saved and saved.get("phase") == "failed":
+                if saved and _startup_outcome(saved) == "started":
+                    return session_id
+                if saved and _startup_outcome(saved) == "failed":
                     raise BridgeError(saved.get("last_error") or str(error)) from error
                 time.sleep(0.05)
         saved = _load_state(session_dir)
-        if saved.get("phase") == "failed":
+        if _startup_outcome(saved) == "started":
+            return session_id
+        if _startup_outcome(saved) == "failed":
             raise BridgeError(saved.get("last_error") or "Codex startup failed")
         raise BridgeError(f"Supervisor startup handshake timed out for session {session_id}")
     except BaseException:
@@ -787,6 +807,9 @@ class Supervisor:
                 return
             self._start_turn(self.initial_prompt, resumed=False)
             self.startup_ready = True
+            # Record it: a turn that fails at once also sets phase "failed", so
+            # the caller cannot tell startup apart from a fast failure without this.
+            self._update(startup_complete=True)
             while True:
                 if self._observe_stop_signal():
                     self._terminate_child()

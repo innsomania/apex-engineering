@@ -70,7 +70,7 @@ A relative `source` silently reports near-zero for anything run from another
 directory. The measured figures are in
 [docs/VERIFICATION.md](docs/VERIFICATION.md).
 
-Run them from the repository root. 116 tests should pass. `ruff` and `mypy`
+Run them from the repository root. 122 tests should pass. `ruff` and `mypy`
 are pinned in `requirements-dev.txt` so a local run and CI agree on what counts
 as a finding; bumping either is a deliberate change, because a new release
 rejects different code.

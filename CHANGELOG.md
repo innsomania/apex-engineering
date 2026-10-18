@@ -73,6 +73,16 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   configuration naming a personal vault note.
 
 ### Fixed
+- The coding bridge reported a started session as a startup failure when its
+  first Codex turn failed before the first status poll. A turn that fails at
+  once also sets the phase to `failed`, and the handshake read the phase alone,
+  so the caller got an error and no session id and could not reach the recorded
+  failure through `status` or `events`. The supervisor already tracked
+  `startup_ready` in memory; it is now persisted, one function decides what the
+  state means, and the decision is tested directly rather than left to timing.
+  CI found this on its first day: it failed on one of ten jobs and on none of
+  four local interpreters.
+
 - The live check's assertions matched a single fragment of a block message, so
   one gate's block could satisfy another gate's claim. Disabling the scope
   sweep left the check passing because the review gate blocked instead and
