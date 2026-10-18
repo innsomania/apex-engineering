@@ -17,16 +17,18 @@ import argparse
 import json
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 DEFAULT_IGNORES = (".DS_Store",)
 
 
-def git(root, *args, check=True):
+def git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=check)
 
 
-def ensure_repository(root):
+def ensure_repository(root: Path) -> bool:
     probe = git(root, "rev-parse", "--show-toplevel", check=False)
     if probe.returncode == 0:
         top = Path(probe.stdout.strip()).resolve()
@@ -38,7 +40,7 @@ def ensure_repository(root):
     return True
 
 
-def ensure_ignores(root, patterns):
+def ensure_ignores(root: Path, patterns: Sequence[str]) -> list[str]:
     path = root / ".gitignore"
     existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
     missing = [pattern for pattern in dict.fromkeys(patterns) if pattern not in existing]
@@ -48,38 +50,39 @@ def ensure_ignores(root, patterns):
     return missing
 
 
-def init(root, allow, verify, timeout, review, ignores):
-    root = Path(root).expanduser().resolve()
-    if not root.is_dir():
-        raise ValueError(f"{root} is not a folder")
-    if (root / ".apex").exists():
-        raise ValueError(f"{root / '.apex'} already exists; edit or remove it yourself first")
+def init(root: str, allow: Sequence[str], verify: str, timeout: int, review: bool,
+         ignores: Sequence[str]) -> dict[str, Any]:
+    project = Path(root).expanduser().resolve()
+    if not project.is_dir():
+        raise ValueError(f"{project} is not a folder")
+    if (project / ".apex").exists():
+        raise ValueError(f"{project / '.apex'} already exists; edit or remove it yourself first")
     if not allow:
         raise ValueError("give at least one --allow pattern (the files the work may change)")
     if not verify.strip():
         raise ValueError("--verify must run the project's real build or tests")
-    created = ensure_repository(root)
-    added = ensure_ignores(root, [*DEFAULT_IGNORES, *ignores])
-    apex = root / ".apex"
+    created = ensure_repository(project)
+    added = ensure_ignores(project, [*DEFAULT_IGNORES, *ignores])
+    apex = project / ".apex"
     apex.mkdir()
     (apex / "scope.json").write_text(json.dumps({"allow": allow}, indent=2) + "\n", encoding="utf-8")
     (apex / "verify.json").write_text(json.dumps({"command": verify, "timeout": timeout}, indent=2) + "\n",
                                       encoding="utf-8")
     if review:
         (apex / "review.json").write_text("{}\n", encoding="utf-8")
-    git(root, "add", "-A")
-    identity = [] if git(root, "config", "user.email", check=False).stdout.strip() else \
+    git(project, "add", "-A")
+    identity = [] if git(project, "config", "user.email", check=False).stdout.strip() else \
         ["-c", "user.name=Apex", "-c", "user.email=apex@localhost"]
-    git(root, *identity, "commit", "-q", "--allow-empty", "-m", "Apex baseline: controls enabled")
+    git(project, *identity, "commit", "-q", "--allow-empty", "-m", "Apex baseline: controls enabled")
     # The verify command is the project's own shell command, supplied by the user.
-    check = subprocess.run(verify, shell=True, cwd=root, capture_output=True, text=True,  # noqa: S602
+    check = subprocess.run(verify, shell=True, cwd=project, capture_output=True, text=True,  # noqa: S602
                            timeout=timeout, check=False)
-    return {"root": str(root), "git_initialized": created, "ignored": added, "allow": allow,
+    return {"root": str(project), "git_initialized": created, "ignored": added, "allow": allow,
             "verify": verify, "verify_exit_code": check.returncode,
             "verify_output_tail": (check.stdout + check.stderr)[-1500:], "review": review}
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     commands = parser.add_subparsers(dest="command", required=True)
     start = commands.add_parser("init", help="enable verify, scope and review for a project folder")

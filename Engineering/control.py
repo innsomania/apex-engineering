@@ -4,14 +4,16 @@ import os
 import stat
 import threading
 import uuid
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 
 class Denied(ValueError):
     pass
 
 
-def relative_path(value):
+def relative_path(value: object) -> str:
     if not isinstance(value, str) or not value or '\\' in value or '\x00' in value:
         raise Denied('Invalid relative path')
     if value.startswith('/') or any(p in ('', '.', '..') for p in value.split('/')):
@@ -25,7 +27,8 @@ class Broker:
     stop() and dispatch() are serialized. An already admitted operation may finish
     before stop() returns; no operation is admitted after the stop event.
     """
-    def __init__(self, root, readable=(), writable=(), max_bytes=65536, max_calls=100):
+    def __init__(self, root: str | os.PathLike[str], readable: Iterable[str] = (),
+                 writable: Iterable[str] = (), max_bytes: int = 65536, max_calls: int = 100) -> None:
         self._readable = frozenset(relative_path(p) for p in readable)
         self._writable = frozenset(relative_path(p) for p in writable)
         if type(max_bytes) is not int or max_bytes < 1 or type(max_calls) is not int or max_calls < 1:
@@ -33,23 +36,25 @@ class Broker:
         self._max_bytes, self._remaining = max_bytes, max_calls
         self._lock = threading.RLock()
         self._stopped = False
-        self.events = []
-        self._fd = os.open(Path(root), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        self.events: list[dict[str, str]] = []
+        self._fd: int | None = os.open(Path(root), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
 
-    def stop(self):
+    def stop(self) -> None:
         with self._lock:
             if not self._stopped:
                 self._stopped = True
                 self.events.append({'event': 'stopped'})
 
-    def close(self):
+    def close(self) -> None:
         with self._lock:
             self.stop()
             if self._fd is not None:
                 os.close(self._fd)
                 self._fd = None
 
-    def _parent(self, path):
+    def _parent(self, path: str) -> int:
+        if self._fd is None:
+            raise Denied('Session closed')
         fd = os.dup(self._fd)
         try:
             for part in path.split('/')[:-1]:
@@ -62,11 +67,11 @@ class Broker:
             raise
 
     @staticmethod
-    def _regular(info):
+    def _regular(info: os.stat_result) -> None:
         if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1:
             raise Denied('Only regular files with one link are supported')
 
-    def dispatch(self, arguments):
+    def dispatch(self, arguments: object) -> dict[str, Any]:
         with self._lock:
             try:
                 if self._stopped:

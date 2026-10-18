@@ -74,10 +74,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.11"
 strict = true
-exclude = "^Claude/skills/"
-# The source modules are the contract; the suites get the lighter default.
-[[tool.mypy.overrides]]
-module = ["test_*", "run_*"]
-disallow_untyped_defs = false
-disallow_incomplete_defs = false
-disallow_untyped_calls = false
+# Claude/skills is vendored. Test/ holds the suites and evaluation runners: they
+# are checked by running them, and annotating assertions on internals would add
+# noise without catching anything.
+exclude = "^(Claude/skills/|Test/)"

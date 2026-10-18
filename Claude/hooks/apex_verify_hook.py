@@ -32,7 +32,13 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
+
+# Hook events and the state file are free-form JSON from Claude Code.
+Event = dict[str, Any]
+State = dict[str, Any]
 
 CONFIG = Path(".apex") / "verify.json"
 SCOPE = Path(".apex") / "scope.json"
@@ -47,7 +53,7 @@ STATE_DIR = Path(os.environ.get("APEX_HOOK_STATE_DIR")
 GATED_SUBAGENTS = {"apex-coding"}
 
 
-def find_root(cwd):
+def find_root(cwd: str | Path) -> Path | None:
     path = Path(cwd).resolve()
     for candidate in (path, *path.parents):
         if any((candidate / name).is_file() for name in (CONFIG, SCOPE, REVIEW)):
@@ -55,7 +61,7 @@ def find_root(cwd):
     return None
 
 
-def load_scope(root):
+def load_scope(root: Path) -> list[str] | None:
     """Allowed patterns, or None when the project has no scope file."""
     if not (root / SCOPE).is_file():
         return None
@@ -68,7 +74,7 @@ def load_scope(root):
     return allow
 
 
-def in_scope(relative, allow):
+def in_scope(relative: str, allow: Sequence[str]) -> bool:
     for pattern in allow:
         if pattern.endswith("/"):
             if relative == pattern[:-1] or relative.startswith(pattern):
@@ -78,7 +84,7 @@ def in_scope(relative, allow):
     return False
 
 
-def load_config(root):
+def load_config(root: Path) -> tuple[str, float]:
     try:
         config = json.loads((root / CONFIG).read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
@@ -92,11 +98,11 @@ def load_config(root):
     return command, timeout
 
 
-def _git(root, *args):
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
     return subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=30, check=False)
 
 
-def fingerprint(root):
+def fingerprint(root: Path) -> str | None:
     """Hash of HEAD, tracked changes and untracked files; None outside a git work tree."""
     if _git(root, "rev-parse", "--is-inside-work-tree").returncode != 0:
         return None
@@ -115,13 +121,13 @@ def fingerprint(root):
     return digest.hexdigest()
 
 
-def snapshot(root):
+def snapshot(root: Path) -> State | None:
     """HEAD plus a content hash of every dirty or untracked file; None outside git."""
     if _git(root, "rev-parse", "--is-inside-work-tree").returncode != 0:
         return None
     head = _git(root, "rev-parse", "--verify", "-q", "HEAD").stdout.decode().strip()
     entries = _git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all").stdout.split(b"\0")
-    files = {}
+    files: dict[str, str] = {}
     index = 0
     while index < len(entries):
         entry = entries[index]
@@ -139,7 +145,7 @@ def snapshot(root):
     return {"head": head, "files": files}
 
 
-def turn_changes(root, before):
+def turn_changes(root: Path, before: State | None) -> list[str]:
     """Paths whose content changed since the turn's baseline snapshot."""
     after = snapshot(root)
     if after is None:
@@ -153,30 +159,30 @@ def turn_changes(root, before):
     return sorted(changed)
 
 
-def state_path(session_id, root):
+def state_path(session_id: str, root: Path) -> Path:
     key = hashlib.sha256(f"{session_id}\0{root}".encode()).hexdigest()[:24]
     return STATE_DIR / f"{key}.json"
 
 
-def read_state(path):
+def read_state(path: Path) -> State:
     try:
-        state = json.loads(path.read_text(encoding="utf-8"))
+        state: object = json.loads(path.read_text(encoding="utf-8"))
         return state if isinstance(state, dict) else {}
     except (OSError, ValueError):
         return {}
 
 
-def write_state(path, state):
+def write_state(path: Path, state: State) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
     temporary.write_text(json.dumps(state), encoding="utf-8")
     os.replace(temporary, path)
 
 
-OUTPUT = {}
+OUTPUT: dict[str, Any] = {}
 
 
-def emit(payload):
+def emit(payload: dict[str, Any]) -> None:
     """Merge into the single JSON object main() prints; Claude Code reads one object."""
     for key, value in payload.items():
         if key == "systemMessage" and key in OUTPUT:
@@ -190,11 +196,12 @@ def emit(payload):
             OUTPUT[key] = value
 
 
-def nearby_controls(cwd, depth=2, limit=5):
+def nearby_controls(cwd: str | Path, depth: int = 2, limit: int = 5) -> list[str]:
     """`.apex` folders below cwd; they do nothing for a session opened in cwd."""
-    found, frontier = [], [Path(cwd)]
+    found: list[str] = []
+    frontier = [Path(cwd)]
     for _ in range(depth):
-        next_frontier = []
+        next_frontier: list[Path] = []
         for folder in frontier:
             try:
                 children = sorted(child for child in folder.iterdir() if child.is_dir())
@@ -230,7 +237,7 @@ LOCK_REASONS = {
 }
 
 
-def classify(prompt):
+def classify(prompt: str) -> str | None:
     """'stop', 'question' or None for a user message; a stop signal outranks a question."""
     text = prompt.translate(FOLD).lower()
     if STOP_ANYWHERE.search(text) or (
@@ -245,11 +252,11 @@ def classify(prompt):
     return None
 
 
-def lock_path(session_id):
+def lock_path(session_id: str) -> Path:
     return STATE_DIR / f"{hashlib.sha256(session_id.encode()).hexdigest()[:24]}.lock"
 
 
-def set_turn_lock(event):
+def set_turn_lock(event: Event) -> None:
     """Lock file edits for this turn when the user asked a question or said stop."""
     prompt = event.get("prompt")
     kind = classify(prompt) if isinstance(prompt, str) else None
@@ -269,26 +276,27 @@ def set_turn_lock(event):
                                                       "blocked for this turn."}})
 
 
-def read_lock(session_id):
+def read_lock(session_id: str) -> State | None:
     """The lock record {"kind", "cwd", "tree"} for this turn, or None."""
     try:
-        lock = json.loads(lock_path(session_id).read_text(encoding="utf-8"))
+        lock: object = json.loads(lock_path(session_id).read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     return lock if isinstance(lock, dict) and lock.get("kind") in LOCK_REASONS else None
 
 
-def turn_lock(session_id):
+def turn_lock(session_id: str) -> str | None:
     lock = read_lock(session_id)
-    return lock["kind"] if lock else None
+    kind: str | None = lock["kind"] if lock else None
+    return kind
 
 
-def unlock(event):
+def unlock(event: Event) -> None:
     """PostToolUse ExitPlanMode: the user approved a plan, so this turn may edit files."""
     lock_path(event.get("session_id", "")).unlink(missing_ok=True)
 
 
-def report_locked_changes(event):
+def report_locked_changes(event: Event) -> None:
     """Edits are refused during a locked turn, but shell commands can still change files."""
     lock = read_lock(event.get("session_id", ""))
     if not lock or lock.get("tree") is None:
@@ -302,7 +310,7 @@ def report_locked_changes(event):
                                f"(the user's message was a {lock['kind']}). Please review them."})
 
 
-def baseline(event):
+def baseline(event: Event) -> None:
     set_turn_lock(event)
     cwd = event.get("cwd") or os.getcwd()
     root = find_root(cwd)
@@ -332,11 +340,11 @@ def baseline(event):
     write_state(path, state)
 
 
-def instructions_path(path):
+def instructions_path(path: Path) -> Path:
     return path.with_suffix(".instructions.md")
 
 
-def write_instructions(path, prompts):
+def write_instructions(path: Path, prompts: Sequence[str]) -> None:
     lines = ["# User messages (verbatim, oldest first)", "",
              "Recorded by the Apex hook from UserPromptSubmit. These are the only instructions.", ""]
     for number, prompt in enumerate(prompts, 1):
@@ -348,9 +356,9 @@ def write_instructions(path, prompts):
     os.replace(temporary, target)
 
 
-def reviewer_verdict(transcript):
+def reviewer_verdict(transcript: str) -> tuple[str | None, str]:
     """Last APEX-REVIEW verdict and report in the reviewer's own transcript, or (None, text)."""
-    reports = []
+    reports: list[str] = []
     try:
         with open(transcript, encoding="utf-8") as stream:
             for line in stream:
@@ -376,7 +384,7 @@ def reviewer_verdict(transcript):
     return None, "The reviewer gave no APEX-REVIEW verdict."
 
 
-def record_review(event):
+def record_review(event: Event) -> None:
     root = find_root(event.get("cwd") or os.getcwd())
     if root is None or not (root / REVIEW).is_file():
         return
@@ -391,7 +399,7 @@ def record_review(event):
     write_state(path, state)
 
 
-def require_review(root, path, state, current):
+def require_review(root: Path, path: Path, state: State, current: str | None) -> bool:
     """Block until the reviewer passed this exact tree; True when the turn may end."""
     if not (root / REVIEW).is_file() or (current is not None and state.get("reviewed") == current):
         return True
@@ -419,7 +427,7 @@ def require_review(root, path, state, current):
     return False
 
 
-def fail(path, state, message):
+def fail(path: Path, state: State, message: str) -> None:
     """Block the stop with ``message`` until MAX_ATTEMPTS, then release with a user notice."""
     failures = int(state.get("failures", 0)) + 1
     state["failures"] = failures
@@ -434,7 +442,7 @@ def fail(path, state, message):
                         f"within the user's instructions, say exactly what blocks it.\n\n{message}"})
 
 
-def stop(event):
+def stop(event: Event) -> None:
     if event.get("hook_event_name") == "SubagentStop":
         if event.get("agent_type") == REVIEWER:
             record_review(event)
@@ -454,7 +462,7 @@ def stop(event):
     if current is not None and state.get("verified") == current:
         finish(root, path, state, current, event)  # checks passed in a subagent; review still due
         return
-    notices = []
+    notices: list[str] = []
     try:
         allow = load_scope(root)
     except ValueError as error:
@@ -488,7 +496,7 @@ def stop(event):
         # The verify command is the project's own shell command, supplied by the user.
         result = subprocess.run(command, shell=True, cwd=root, capture_output=True,  # noqa: S602
                                 timeout=timeout, stdin=subprocess.DEVNULL, check=False)
-        code = result.returncode
+        code: int | str = result.returncode
         output = (result.stdout + result.stderr).decode("utf-8", errors="replace")
     except subprocess.TimeoutExpired as error:
         code = "timeout"
@@ -503,7 +511,7 @@ def stop(event):
                       + output[-OUTPUT_TAIL:])
 
 
-def finish(root, path, state, current, event):
+def finish(root: Path, path: Path, state: State, current: str | None, event: Event) -> None:
     """Checks passed; the main turn still needs a review when the project asks for one."""
     state["verified"] = current
     if event.get("hook_event_name") == "SubagentStop":
@@ -516,12 +524,12 @@ def finish(root, path, state, current, event):
     write_state(path, state)
 
 
-def deny(reason):
+def deny(reason: str) -> None:
     emit({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
                                  "permissionDecisionReason": reason}})
 
 
-def claude_own_file(path):
+def claude_own_file(path: Path) -> bool:
     """Claude Code's plan and memory files, which live outside every project."""
     claude = (Path.home() / ".claude").resolve()
     try:
@@ -532,7 +540,7 @@ def claude_own_file(path):
         len(parts) >= 4 and parts[0] == "projects" and parts[2] == "memory")
 
 
-def guard(event):
+def guard(event: Event) -> None:
     tool_input = event.get("tool_input") or {}
     target = tool_input.get("file_path") or tool_input.get("notebook_path")
     if not isinstance(target, str):
@@ -569,7 +577,7 @@ def guard(event):
              "Do not work around this; ask the user whether this file may be changed.")
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     mode = argv[0] if argv else ""
     try:

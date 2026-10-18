@@ -9,6 +9,7 @@ import stat
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any
 
 SOURCE = Path(__file__).resolve().parent
 START = b"\n<!-- apex-engineering:begin -->\n"
@@ -32,7 +33,7 @@ CLAUDE_TEXT = (
 SPEC_SKILLS = SOURCE / "Claude" / "skills"
 
 
-def vendored_skill_links():
+def vendored_skill_links() -> dict[str, Path]:
     """Third-party skills kept under Claude/skills/, so a global Apex install carries them.
 
     Each one keeps its upstream licence beside it. See Engineering/Integrations/VENDORED_SKILLS.md
@@ -43,7 +44,7 @@ def vendored_skill_links():
             if path.is_dir() and (path / "SKILL.md").is_file()}
 
 
-HOSTS = {
+HOSTS: dict[str, dict[str, Any]] = {
     "codex": {"env": "CODEX_HOME", "default": Path.home() / ".codex",
               "instructions": "AGENTS.md", "override": "AGENTS.override.md", "text": CODEX_TEXT,
               "links": {"skills/apex-engineering": SOURCE}},
@@ -57,21 +58,21 @@ HOSTS = {
 
 
 HOOK_SCRIPT = SOURCE / "Claude" / "hooks" / "apex_verify_hook.py"
-HOOKS = (("UserPromptSubmit", None, "baseline", 60),
+HOOKS: tuple[tuple[str, str | None, str, int], ...] = (("UserPromptSubmit", None, "baseline", 60),
          ("Stop", None, "stop", 900),
          ("SubagentStop", None, "stop", 900),
          ("PreToolUse", "Write|Edit|MultiEdit|NotebookEdit", "guard", 10),
          ("PostToolUse", "ExitPlanMode", "unlock", 10))
 
 
-def _owned_hook(hook):
+def _owned_hook(hook: object) -> bool:
     return isinstance(hook, dict) and HOOK_SCRIPT.name in str(hook.get("command", ""))
 
 
-def merge_hooks(settings, install):
+def merge_hooks(settings: dict[str, Any], install: bool) -> dict[str, Any]:
     """Return settings with Apex hooks removed, then added back when installing."""
-    result = json.loads(json.dumps(settings))
-    hooks = result.get("hooks", {})
+    result: dict[str, Any] = json.loads(json.dumps(settings))
+    hooks: dict[str, Any] = result.get("hooks", {})
     if not isinstance(hooks, dict):
         raise ValueError("settings.json 'hooks' is not an object; reconcile it manually.")
     for event in list(hooks):
@@ -102,7 +103,7 @@ def merge_hooks(settings, install):
     return result
 
 
-def read_settings(path):
+def read_settings(path: Path) -> dict[str, Any]:
     if path.is_symlink():
         raise ValueError(f"{path.name} is a symlink; resolve its ownership before installation.")
     if not path.exists():
@@ -116,11 +117,12 @@ def read_settings(path):
     return settings
 
 
-def block(host="codex"):
-    return START + HOSTS[host]["text"].encode() + END
+def block(host: str = "codex") -> bytes:
+    text: str = HOSTS[host]["text"]
+    return START + text.encode() + END
 
 
-def split_owned(data, host="codex"):
+def split_owned(data: bytes, host: str = "codex") -> tuple[bytes, bool]:
     """Return bytes outside our block; reject ambiguous or modified ownership."""
     begin = b"<!-- apex-engineering:begin -->"
     end = b"<!-- apex-engineering:end -->"
@@ -131,7 +133,7 @@ def split_owned(data, host="codex"):
     return data.replace(block(host), b"", 1), True
 
 
-def atomic_write(path, data):
+def atomic_write(path: Path, data: bytes) -> None:
     """Publish complete contents only; preserve permissions and clean failed writes."""
     mode = stat.S_IMODE(path.stat().st_mode) if path.exists() else 0o600
     descriptor, name = tempfile.mkstemp(prefix=".apex-", dir=path.parent)
@@ -147,7 +149,7 @@ def atomic_write(path, data):
         temporary.unlink(missing_ok=True)
 
 
-def configure(home, action, host="codex"):
+def configure(home: str | Path, action: str, host: str = "codex") -> str:
     spec = HOSTS[host]
     home = Path(home).expanduser().absolute()
     instructions = home / spec["instructions"]
@@ -155,8 +157,8 @@ def configure(home, action, host="codex"):
         raise ValueError(f"{instructions.name} is a symlink; resolve its ownership before installation.")
     data = instructions.read_bytes() if instructions.exists() else b""
     outside, installed_block = split_owned(data, host)
-    links = {home / name: target for name, target in spec["links"].items()}
-    owned = {}
+    links: dict[Path, Path] = {home / name: target for name, target in spec["links"].items()}
+    owned: dict[Path, bool] = {}
     for link, target in links.items():
         ours = link.is_symlink() and link.resolve() == target
         if os.path.lexists(link) and not ours:
@@ -173,7 +175,7 @@ def configure(home, action, host="codex"):
                 + (f", hooks={'present' if hooks_present else 'missing'}" if settings is not None else "")
                 + (f", override={'present' if override_active else 'absent'}" if override else ""))
     if action == "install":
-        if override_active:
+        if override is not None and override_active:
             raise ValueError(f"{override.name} may mask global instructions; reconcile it before installation.")
         missing = [target for target in links.values() if not target.exists()]
         if missing:
@@ -196,7 +198,7 @@ def configure(home, action, host="codex"):
             raise
         return f"Installed Apex Engineering for {host}: {home}"
     if action == "uninstall":
-        if hooks_present:
+        if hooks_present and settings is not None:
             atomic_write(settings_path, (json.dumps(merge_hooks(settings, False), indent=2,
                                                     ensure_ascii=False) + "\n").encode())
         if installed_block:
@@ -208,7 +210,7 @@ def configure(home, action, host="codex"):
     raise ValueError(f"Unknown action: {action}")
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("install", "status", "uninstall"))
     parser.add_argument("--host", choices=("codex", "claude", "all"), default="codex",
@@ -217,7 +219,7 @@ def main():
     parser.add_argument("--claude-home", type=Path,
                         help="Claude Code user directory (default: CLAUDE_CONFIG_DIR or ~/.claude)")
     args = parser.parse_args()
-    hosts = ("codex", "claude") if args.host == "all" else (args.host,)
+    hosts: tuple[str, ...] = ("codex", "claude") if args.host == "all" else (args.host,)
     explicit = {"codex": args.codex_home, "claude": args.claude_home}
     status = 0
     for host in hosts:
