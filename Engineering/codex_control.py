@@ -11,12 +11,18 @@ import subprocess
 import tempfile
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
+
+# App Server messages and the session report are free-form JSON.
+Message = dict[str, Any]
+Report = dict[str, Any]
 
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10 and older; the session fails closed below.
-    tomllib = None
+    tomllib = None  # type: ignore[assignment]
 
 DISABLED = ['apps', 'plugins', 'plugin_hooks', 'codex_hooks', 'hooks', 'browser_use', 'browser_use_external',
             'in_app_browser', 'computer_use', 'connectors', 'enable_mcp_apps', 'code_mode', 'code_mode_only',
@@ -49,7 +55,7 @@ INFORMATIONAL_NOTIFICATIONS = {
 }
 
 
-def command():
+def command() -> list[str]:
     version = subprocess.run(['codex', '--version'], check=True, capture_output=True, text=True, timeout=10)
     if version.stdout.strip() != 'codex-cli 0.162.0':
         raise RuntimeError('Unsupported Codex version; review protocol and controls before use')
@@ -75,7 +81,7 @@ def command():
     return args
 
 
-def verify_effective_config(effective):
+def verify_effective_config(effective: object) -> None:
     """Fail closed if a host config override was ignored or an MCP server is active."""
     if not isinstance(effective, dict):
         raise RuntimeError('Codex returned an invalid effective configuration')
@@ -93,9 +99,12 @@ def verify_effective_config(effective):
         raise RuntimeError('Effective MCP configuration is not disabled')
 
 
-def dispatch_tool_call(broker, params, thread_id, turn_id, seen_calls):
+def dispatch_tool_call(broker: Any, params: object, thread_id: str | None, turn_id: str | None,
+                       seen_calls: set[str]) -> dict[str, Any]:
     """Route only fresh calls for this turn to the bounded file broker."""
-    call_id = params.get('callId') if isinstance(params, dict) else None
+    if not isinstance(params, dict):
+        return {'success': False, 'text': 'Unrecognized tool call or replay'}
+    call_id = params.get('callId')
     fresh = isinstance(call_id, str) and call_id not in seen_calls
     if isinstance(call_id, str):
         seen_calls.add(call_id)
@@ -105,11 +114,12 @@ def dispatch_tool_call(broker, params, thread_id, turn_id, seen_calls):
              and params.get('threadId') == thread_id and params.get('turnId') == turn_id
              and params.get('tool') == 'apex_file' and not params.get('namespace'))
     if valid:
-        return broker.dispatch(params.get('arguments'))
+        result: dict[str, Any] = broker.dispatch(params.get('arguments'))
+        return result
     return {'success': False, 'text': 'Unrecognized tool call or replay'}
 
 
-def _command_targets_path(item, path):
+def _command_targets_path(item: dict[str, Any], path: str | None) -> bool:
     if not path:
         return False
     command = item.get('command')
@@ -120,13 +130,18 @@ def _command_targets_path(item, path):
     return False
 
 
-def run_fixture(broker, prompt, stop_event=None, timeout=90, on_tool=None, direct_write_target=None):
+def run_fixture(broker: Any, prompt: str, stop_event: threading.Event | None = None, timeout: float = 90,
+                on_tool: Callable[..., Any] | None = None,
+                direct_write_target: str | None = None) -> Report:
     """Run one isolated turn. ``on_tool`` is a trusted test hook only."""
     return _run_session(broker, prompt, None, stop_event, timeout, on_tool, direct_write_target, None)
 
 
-def run_session(broker, prompt_provider, stop_event=None, timeout=90, on_tool=None,
-                direct_write_target=None, on_turn=None, initial_prompt=None):
+def run_session(broker: Any, prompt_provider: Callable[[], str | None],
+                stop_event: threading.Event | None = None, timeout: float = 90,
+                on_tool: Callable[..., Any] | None = None, direct_write_target: str | None = None,
+                on_turn: Callable[[dict[str, Any]], Any] | None = None,
+                initial_prompt: str | None = None) -> Report:
     """Run successive user turns on one thread until the provider returns None.
 
     The provider is trusted host code and is called only between turns. ``on_tool``
@@ -140,18 +155,22 @@ def run_session(broker, prompt_provider, stop_event=None, timeout=90, on_tool=No
                         direct_write_target, on_turn)
 
 
-def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_tool,
-                 direct_write_target, on_turn):
+def _run_session(broker: Any, first_prompt: str | None,
+                 prompt_provider: Callable[[], str | None] | None,
+                 stop_event: threading.Event | None, timeout: float,
+                 on_tool: Callable[..., Any] | None, direct_write_target: str | None,
+                 on_turn: Callable[[dict[str, Any]], Any] | None) -> Report:
     """Own one App Server process and thread for a bounded interactive session."""
     stop_event = stop_event if stop_event is not None else threading.Event()
-    report = {'status': 'failed', 'events': [], 'messages': []}
-    thread_id = turn_id = None
+    report: Report = {'status': 'failed', 'events': [], 'messages': []}
+    thread_id: str | None = None
+    turn_id: str | None = None
     interrupted = False
-    interrupt_request_id = None
+    interrupt_request_id: int | None = None
     turn_request_id = 3
     next_request_id = 10
     turn_message_start = 0
-    seen_calls = set()
+    seen_calls: set[str] = set()
     with tempfile.TemporaryDirectory(prefix='apex-controller-') as cwd, tempfile.TemporaryFile() as errors:
         try:
             process = subprocess.Popen(command(), cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -159,10 +178,14 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
         except BaseException:
             broker.stop()
             raise
-        incoming = queue.Queue()
-        def reader():
+        if process.stdin is None or process.stdout is None:
+            broker.stop()
+            raise RuntimeError('Codex App Server did not provide its standard streams')
+        stdin, stdout = process.stdin, process.stdout
+        incoming: queue.Queue[Message | None] = queue.Queue()
+        def reader() -> None:
             try:
-                for line in process.stdout:
+                for line in stdout:
                     incoming.put(json.loads(line))
             except (ValueError, OSError):
                 incoming.put({'error': {'message': 'Invalid server stream'}})
@@ -170,10 +193,10 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
                 incoming.put(None)
         worker = threading.Thread(target=reader, daemon=True)
         worker.start()
-        def send(message):
-            process.stdin.write(json.dumps(message) + '\n')
-            process.stdin.flush()
-        def stop():
+        def send(message: Message) -> None:
+            stdin.write(json.dumps(message) + '\n')
+            stdin.flush()
+        def stop() -> None:
             nonlocal interrupted, interrupt_request_id, next_request_id
             broker.stop()
             if turn_id and not interrupted:
@@ -184,7 +207,9 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
                 interrupted = True
                 report['events'].append('interrupt_requested')
 
-        def ask_for_prompt():
+        def ask_for_prompt() -> str | None:
+            if prompt_provider is None:
+                return None
             try:
                 prompt_text = prompt_provider()
             except KeyboardInterrupt:
@@ -194,7 +219,7 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
                 raise ValueError('Prompts must be non-empty text')
             return prompt_text
 
-        def fail_closed(event, message):
+        def fail_closed(event: str, message: str) -> None:
             stop()
             report['events'].append(event)
             report['status'] = 'failed'
@@ -398,7 +423,7 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
                 process.kill()
                 process.wait(timeout=5)
             worker.join(timeout=2)
-            process.stdin.close()
-            process.stdout.close()
+            stdin.close()
+            stdout.close()
     report['broker_events'] = list(broker.events)
     return report

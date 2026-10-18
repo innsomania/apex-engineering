@@ -10,13 +10,15 @@ import logging
 import os
 import re
 import sys
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10 and older; load_config fails closed below.
-    tomllib = None
+    tomllib = None  # type: ignore[assignment]
 from urllib.parse import urlsplit
 
 MCP_SDK_VERSION = "2.3.0"
@@ -35,7 +37,7 @@ class ServerSpec:
 
 
 # Explicit allowlist of the six Engineering MCP servers.
-REGISTRY = {
+REGISTRY: dict[str, ServerSpec] = {
     "playwright": ServerSpec("browser_testing", ("browser_navigate", "browser_snapshot")),
     "microsoft-learn": ServerSpec("microsoft_documentation", ("microsoft_docs_search",)),
     "openai-developer-docs": ServerSpec(
@@ -47,7 +49,7 @@ REGISTRY = {
 ROUTES = {spec.capability: server for server, spec in REGISTRY.items()}
 
 
-def route_capability(capability):
+def route_capability(capability: str) -> str:
     """Return the allowlisted server for an Engineering capability."""
     try:
         return ROUTES[capability]
@@ -55,12 +57,12 @@ def route_capability(capability):
         raise ValueError("Unknown MCP capability") from error
 
 
-def _config_path():
+def _config_path() -> Path:
     codex_home = Path(os.environ.get("CODEX_HOME", str(Path.home() / ".codex"))).expanduser()
     return codex_home / "config.toml"
 
 
-def load_config(path=None):
+def load_config(path: str | Path | None = None) -> dict[str, Any]:
     """Load server entries for internal use without exposing configuration values."""
     config_path = Path(path).expanduser() if path else _config_path()
     try:
@@ -74,13 +76,13 @@ def load_config(path=None):
             config = tomllib.load(stream)
     except (OSError, ValueError) as error:
         raise ValueError("Codex MCP configuration is unavailable or invalid") from error
-    servers = config.get("mcp_servers", {})
+    servers: object = config.get("mcp_servers", {})
     if not isinstance(servers, dict):
         raise ValueError("Codex MCP configuration is unavailable or invalid")
     return servers
 
 
-def _stdio_params(entry, params_type):
+def _stdio_params(entry: dict[str, Any], params_type: Any) -> Any:
     command = entry.get("command")
     args = entry.get("args", [])
     env = entry.get("env", {}) or {}
@@ -97,6 +99,8 @@ def _stdio_params(entry, params_type):
     if not isinstance(env_vars, list):
         raise ValueError("Invalid STDIO environment allowlist")
     for item in env_vars:
+        name: object
+        source: object
         if isinstance(item, str):
             name, source = item, "local"
         elif isinstance(item, dict):
@@ -110,7 +114,7 @@ def _stdio_params(entry, params_type):
     return params_type(command=command, args=args, env=child_env or None, cwd=cwd)
 
 
-def _remote_target(entry):
+def _remote_target(entry: dict[str, Any]) -> str:
     url = entry.get("url")
     if not isinstance(url, str):
         raise ValueError("Invalid HTTP configuration")
@@ -128,7 +132,8 @@ def _remote_target(entry):
     return url
 
 
-def _discover_tools(entry, transport, timeout=8.0, *, sdk=None):
+def _discover_tools(entry: dict[str, Any], transport: str, timeout: float = 8.0, *,
+                    sdk: tuple[Any, Any] | None = None) -> tuple[list[str] | None, str | None]:
     """Use the pinned MCP SDK to initialize a server and request tools/list only."""
     if sdk is None:
         try:
@@ -151,9 +156,9 @@ def _discover_tools(entry, transport, timeout=8.0, *, sdk=None):
     except ValueError:
         return None, "invalid_configuration"
 
-    async def list_names():
+    async def list_names() -> list[str] | None:
         async with client_type(target, read_timeout_seconds=timeout) as client:
-            discovered = []
+            discovered: list[str] = []
             cursor = None
             for _ in range(MAX_TOOL_PAGES):
                 page = await client.list_tools(cursor=cursor)
@@ -181,10 +186,11 @@ def _discover_tools(entry, transport, timeout=8.0, *, sdk=None):
     return (names, None) if names is not None else (None, "protocol_error")
 
 
-def probe_servers(config, names=None, timeout=8.0, *, sdk=None):
+def probe_servers(config: dict[str, Any], names: Iterable[str] | None = None, timeout: float = 8.0, *,
+                  sdk: tuple[Any, Any] | None = None) -> list[dict[str, Any]]:
     """Probe registered servers. No MCP tool invocation is made."""
     selected = list(names) if names is not None else list(REGISTRY)
-    reports = []
+    reports: list[dict[str, Any]] = []
     for name in selected:
         if name not in REGISTRY:
             raise ValueError("Server is outside the MCP allowlist")
@@ -238,7 +244,7 @@ def probe_servers(config, names=None, timeout=8.0, *, sdk=None):
     return reports
 
 
-def _result_sha256(result):
+def _result_sha256(result: object) -> str | None:
     if result is None:
         return None
     serialized = json.dumps(result, ensure_ascii=False, sort_keys=True,
@@ -246,11 +252,11 @@ def _result_sha256(result):
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
-def audit_jsonl(lines, task_id):
+def audit_jsonl(lines: Iterable[str], task_id: object) -> dict[str, Any]:
     """Summarize registered MCP events; retain no arguments, results, or errors."""
     if not isinstance(task_id, str) or not TASK_ID_RE.fullmatch(task_id):
         raise ValueError("Task ID must be an Apex task identifier")
-    events = []
+    events: list[dict[str, Any]] = []
     malformed = 0
     ignored_unregistered = 0
     failed = 0
@@ -334,12 +340,12 @@ def audit_jsonl(lines, task_id):
     }
 
 
-def _write_json(value):
+def _write_json(value: object) -> None:
     json.dump(value, sys.stdout, ensure_ascii=False, sort_keys=True)
     sys.stdout.write("\n")
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Probe allowlisted MCP capabilities and audit Codex JSONL")
     subparsers = parser.add_subparsers(dest="command", required=True)
     routes_parser = subparsers.add_parser("routes", help="List bounded capability routing")

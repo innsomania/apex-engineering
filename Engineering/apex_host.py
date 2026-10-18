@@ -3,13 +3,16 @@ import argparse
 import signal
 import sys
 import threading
+from collections.abc import Callable, Sequence
 from pathlib import Path
+from typing import Any
 
 from codex_control import run_session
 from control import Broker, Denied, relative_path
 
 
-def _allowlist(parser, label, paths):
+def _allowlist(parser: argparse.ArgumentParser, label: str,
+                paths: Sequence[str]) -> tuple[str, ...]:
     try:
         result = tuple(relative_path(path) for path in paths)
     except Denied as error:
@@ -19,7 +22,9 @@ def _allowlist(parser, label, paths):
     return result
 
 
-def main(argv=None, stop_event=None, prompt_reader=input, output=print):
+def main(argv: Sequence[str] | None = None, stop_event: threading.Event | None = None,
+         prompt_reader: Callable[[str], str] = input,
+         output: Callable[[str], None] = print) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project-root', type=Path, required=True,
                         help='project directory used as the broker root')
@@ -46,12 +51,12 @@ def main(argv=None, stop_event=None, prompt_reader=input, output=print):
     previous_sigint = signal.getsignal(signal.SIGINT)
     waiting_for_input = [False]
 
-    def handle_sigint(*_):
+    def handle_sigint(*_: Any) -> None:
         if waiting_for_input[0]:
             raise KeyboardInterrupt
         stop_event.set()
 
-    def prompt_provider():
+    def prompt_provider() -> str | None:
         while True:
             waiting_for_input[0] = True
             try:
@@ -68,7 +73,7 @@ def main(argv=None, stop_event=None, prompt_reader=input, output=print):
             if prompt.strip():
                 return prompt
 
-    def show_turn(turn):
+    def show_turn(turn: dict[str, Any]) -> None:
         for message in turn['messages']:
             output(f"Assistant> {message}")
 

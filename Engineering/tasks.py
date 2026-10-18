@@ -9,13 +9,18 @@ import sqlite3
 import sys
 import tempfile
 import uuid
+from collections.abc import Iterable, Iterator, Sequence
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
+
+# A task is a JSON document; the ledger stores and returns it as one.
+Task = dict[str, Any]
 
 ROLES = ("Engineering", "Coding", "Test", "Security")
 TERMINAL = {"completed", "cancelled"}
-TRANSITIONS = {
+TRANSITIONS: dict[str, tuple[set[str], str]] = {
     "start": ({"queued"}, "active"),
     "review": ({"active"}, "review"),
     "block": ({"queued", "active", "review"}, "blocked"),
@@ -27,17 +32,17 @@ TRANSITIONS = {
 }
 
 
-def timestamp():
+def timestamp() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def required(value, name):
+def required(value: object, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be non-empty text")
     return value.strip()
 
 
-def file_hash(path):
+def file_hash(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(65536), b""):
@@ -46,12 +51,12 @@ def file_hash(path):
 
 
 class Ledger:
-    def __init__(self, path):
+    def __init__(self, path: str | Path) -> None:
         self.path = Path(path).absolute()
         self.board_config = self.path.with_suffix(".board.json")
-        self.board_warning = None
+        self.board_warning: str | None = None
 
-    def _sync_board(self, task):
+    def _sync_board(self, task: Task) -> Task:
         """Refresh the configured Markdown board after a committed change; never undo the change."""
         self.board_warning = None
         if not self.board_config.is_file():
@@ -65,7 +70,7 @@ class Ledger:
             self.board_warning = f"Task saved, but the board was not refreshed: {error}"
         return task
 
-    def initialize(self):
+    def initialize(self) -> None:
         # Explicit initialization only. Never create a ledger during read commands.
         if self.path.exists() or self.path.is_symlink():
             raise ValueError("Ledger path already exists; it will not be replaced")
@@ -78,7 +83,7 @@ class Ledger:
             db.commit()
 
     @contextmanager
-    def connection(self, write=False):
+    def connection(self, write: bool = False) -> Iterator[sqlite3.Connection]:
         if not self.path.is_file() or self.path.is_symlink():
             raise ValueError("Ledger missing or symlinked; initialize an explicit regular file")
         uri = self.path.as_uri() + ("?mode=rw" if write else "?mode=ro")
@@ -96,21 +101,23 @@ class Ledger:
             db.close()
 
     @staticmethod
-    def get(db, task_id):
+    def get(db: sqlite3.Connection, task_id: str) -> Task:
         row = db.execute("SELECT body FROM tasks WHERE id=?", (task_id,)).fetchone()
         if row is None:
             raise ValueError(f"Unknown task: {task_id}")
-        return json.loads(row[0])
+        task: Task = json.loads(row[0])
+        return task
 
     @staticmethod
-    def save(db, task, event, details):
+    def save(db: sqlite3.Connection, task: Task, event: str, details: dict[str, Any]) -> Task:
         task["updated_at"] = timestamp()
         task["history"].append({"at": task["updated_at"], "event": event, "details": details})
         db.execute("INSERT OR REPLACE INTO tasks VALUES (?, ?)",
                    (task["id"], json.dumps(task, ensure_ascii=False)))
         return task
 
-    def create(self, project, title, scope, criteria, role="Engineering", dependencies=()):
+    def create(self, project: str, title: str, scope: str, criteria: Sequence[str],
+               role: str = "Engineering", dependencies: Iterable[str] = ()) -> Task:
         if role not in ROLES:
             raise ValueError("Unknown role")
         project = required(project, "project")
@@ -135,7 +142,7 @@ class Ledger:
             task = self.save(db, task, "created", {"role": role})
         return self._sync_board(task)
 
-    def list(self, project=None, ready=False):
+    def list(self, project: str | None = None, ready: bool = False) -> list[Task]:
         with self.connection() as db:
             tasks = [json.loads(row[0]) for row in db.execute("SELECT body FROM tasks ORDER BY rowid")]
             states = {t["id"]: t["state"] for t in tasks}
@@ -143,11 +150,11 @@ class Ledger:
                     and (not ready or (t["state"] == "queued"
                          and all(states.get(d) == "completed" for d in t["dependencies"])))]
 
-    def show(self, task_id):
+    def show(self, task_id: str) -> Task:
         with self.connection() as db:
             return self.get(db, task_id)
 
-    def assign(self, task_id, role, reason):
+    def assign(self, task_id: str, role: str, reason: str) -> Task:
         if role not in ROLES:
             raise ValueError("Unknown role")
         reason = required(reason, "reason")
@@ -159,7 +166,7 @@ class Ledger:
             task = self.save(db, task, "assigned", {"role": role, "reason": reason})
         return self._sync_board(task)
 
-    def transition(self, task_id, action, reason=""):
+    def transition(self, task_id: str, action: str, reason: str = "") -> Task:
         if action not in TRANSITIONS:
             raise ValueError("Unknown transition")
         if action in {"block", "pause", "resume", "rework", "cancel"}:
@@ -186,7 +193,8 @@ class Ledger:
             task = self.save(db, task, action, {"reason": reason})
         return self._sync_board(task)
 
-    def evidence(self, task_id, criterion, result, path, summary, reviewer):
+    def evidence(self, task_id: str, criterion: str, result: str, path: str | Path,
+                 summary: str, reviewer: str) -> Task:
         if result not in {"pass", "fail"} or reviewer not in {"Test", "Security"}:
             raise ValueError("Evidence requires pass/fail and Test or Security reviewer role")
         summary = required(summary, "summary")
@@ -205,14 +213,14 @@ class Ledger:
             task = self.save(db, task, "evidence", {"criterion": criterion, **evidence})
         return self._sync_board(task)
 
-    def export(self, destination, project=None):
+    def export(self, destination: str | Path, project: str | None = None) -> dict[str, str]:
         destination = Path(destination).absolute()
         marker = "<!-- apex-task-board:v1 -->"
         if destination == self.path or destination.is_symlink():
             raise ValueError("Unsafe board destination")
         if destination.exists() and not destination.read_text().startswith(marker + "\n"):
             raise ValueError("Refusing to replace an unowned note")
-        def literal(value):
+        def literal(value: object) -> str:
             # Render user text literally rather than letting it create links/headings/HTML.
             value = str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
             for char in "\\`*_{}[]()#+-.!|":
@@ -249,7 +257,8 @@ class Ledger:
         return {"board": str(destination), "synchronized": "snapshot only"}
 
 
-def main():
+def main() -> None:
+    # Failures exit through parser.exit, so there is no status to return.
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--store", required=True, type=Path)
     commands = parser.add_subparsers(dest="command", required=True)
@@ -285,6 +294,7 @@ def main():
     export.add_argument("--project")
     args = parser.parse_args()
     ledger = Ledger(args.store)
+    result: Task | list[Task] | dict[str, str]
     try:
         if args.command == "init":
             ledger.initialize()

@@ -3,13 +3,15 @@ import argparse
 import json
 import signal
 import threading
+from collections.abc import Sequence
 from pathlib import Path
 
 from codex_control import run_fixture
 from control import Broker, Denied, relative_path
 
 
-def _allowlist(parser, label, paths):
+def _allowlist(parser: argparse.ArgumentParser, label: str,
+                paths: Sequence[str]) -> tuple[str, ...]:
     try:
         result = tuple(relative_path(path) for path in paths)
     except Denied as error:
@@ -19,7 +21,7 @@ def _allowlist(parser, label, paths):
     return result
 
 
-def main(argv=None, stop_event=None):
+def main(argv: Sequence[str] | None = None, stop_event: threading.Event | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--project-root', type=Path, required=True,
                         help='project directory used as the broker root')
