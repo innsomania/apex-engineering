@@ -30,6 +30,46 @@ blocks and quotes the finding, a `PASS` verdict releases the turn, a write made
 through the shell is still caught, and a question turn locks edits. All 12
 observations must pass. It runs no model and needs no network.
 
+A fifth proves that fourth check is not blind:
+
+```sh
+python3 Test/run_mutation_check.py --output artifacts/mutations.json
+```
+
+It disables one gate at a time in a throwaway copy of the hook and requires the
+live check to report the matching failure. A surviving mutation means the live
+check does not cover that gate, and is a defect in the check, not in the hook.
+Keep its `MUTATIONS` list in step with the gates.
+
+### Coverage
+
+Coverage needs subprocess tracing, because every gate runs as a subprocess, and
+an **absolute** `source`, because the tests run the tools from temporary
+directories:
+
+```sh
+pip install coverage
+printf 'import coverage; coverage.process_startup()\n' \
+  > "$(python3 -c 'import site;print(site.getsitepackages()[0])')/zz-coverage.pth"
+cat > .coveragerc <<EOF
+[run]
+branch = True
+parallel = True
+source = $PWD/Claude
+          $PWD/Engineering
+omit = */Claude/skills/*
+relative_files = False
+EOF
+export COVERAGE_PROCESS_START="$PWD/.coveragerc"
+python3 -m coverage run -m unittest discover -s Test -p 'test_*.py'
+python3 -m coverage run Test/run_live_control_check.py
+python3 -m coverage combine && python3 -m coverage report --skip-empty --sort=cover
+```
+
+A relative `source` silently reports near-zero for anything run from another
+directory. The measured figures are in
+[docs/VERIFICATION.md](docs/VERIFICATION.md).
+
 Run them from the repository root. 116 tests should pass. `ruff` and `mypy`
 are pinned in `requirements-dev.txt` so a local run and CI agree on what counts
 as a finding; bumping either is a deliberate change, because a new release

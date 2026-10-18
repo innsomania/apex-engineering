@@ -38,6 +38,71 @@ Claude Code does and asserts what a user would observe:
 Record: [live-controls-2026-10-18.json](evaluations/evidence/live-controls-2026-10-18.json).
 It runs no model and needs no network, so CI runs it on every push.
 
+## Is the live check blind?
+
+A check is worth its result only if it fails when the thing it checks breaks,
+so `Test/run_mutation_check.py` disables one gate at a time in a throwaway copy
+of the hook and requires the live check to report the matching failure. All six
+mutations are caught (observed 2026-10-18):
+
+| Gate disabled | Caught by |
+| --- | --- |
+| `in_scope` ignored in the edit guard | an out-of-scope file is refused |
+| the end-of-turn git sweep reports nothing outside scope | a shell write outside the scope blocks the stop |
+| a non-zero verify exit treated as success | a failing verify blocks the stop |
+| `require_review` always satisfied | a passing verify still requires the review |
+| a `FAIL` verdict no longer blocks | a failing review blocks and reports the finding |
+| the question lock ignored | edits are locked for a question turn |
+
+Record: [mutations-2026-10-18.json](evaluations/evidence/mutations-2026-10-18.json).
+
+The first run of this check found a surviving mutation, which is what it is
+for. Disabling the scope sweep left the live check passing, because its
+assertion only looked for the changed file's name in the block reason, and the
+review gate blocked instead and named the same file in its own message. The
+assertions now require every fragment of the expected message, so one gate's
+block cannot satisfy another gate's claim.
+
+## Coverage
+
+Measured 2026-10-18 on Python 3.14.7, with subprocess tracing, across the
+suite, the live check, and the mutation check:
+
+| Module | Coverage |
+| --- | --- |
+| `Engineering/control.py` | 94% |
+| `Claude/hooks/apex_verify_hook.py` | 90% |
+| `Engineering/tasks.py` | 89% |
+| `Claude/apex_project.py` | 88% |
+| `Engineering/controlled_cli.py` | 79% |
+| `Engineering/coding_bridge.py` | 78% |
+| `Engineering/apex_host.py` | 76% |
+| `Engineering/codex_control.py` | 70% |
+| `Engineering/mcp_doctor.py` | 54% |
+| **Total** | **78%** |
+
+Record: [coverage-2026-10-18.txt](evaluations/evidence/coverage-2026-10-18.txt).
+
+Two cautions about that table. The bridge first measured 19% purely because the
+coverage `source` was relative while its tests run the CLI from a temporary
+project directory, so nothing matched; an absolute `source` gives 78%. And
+`install.py` reports no data at all for a similar reason, though twelve tests
+exercise it. A coverage number is a measurement, and the measurement can be
+wrong in either direction.
+
+## Platforms
+
+The suite and the live check were run directly on four interpreters (observed
+2026-10-18, macOS x86_64): Python 3.11.16, 3.12.10, 3.13.15, and 3.14.7. All
+116 tests and all 12 observations pass on each.
+
+Both were also run from a fresh `git clone` into a temporary directory, with
+installation into isolated host directories, to establish that nothing depends
+on this working tree's untracked state.
+
+Linux is **not** verified locally. The CI matrix covers it, and CI has not yet
+run because this repository has no remote.
+
 Two notes on what this did and did not establish. The first run failed three
 observations, all from one cause in the check itself rather than in Apex: the
 fixture's verify command named a test runner that was not installed, so verify

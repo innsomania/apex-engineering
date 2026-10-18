@@ -110,11 +110,20 @@ class Harness:
             print(f"        gozlenen: {json.dumps(observed, ensure_ascii=False)[:600]}")
 
     def expect_blocked(self, step: str, observed: dict[str, Any] | None, *,
-                       contains: str = "") -> bool:
+                       contains: str | tuple[str, ...] = ()) -> bool:
+        """Every fragment must appear, so another gate's block cannot satisfy this.
+
+        Naming only the changed file was not enough: when the scope sweep was
+        disabled, the review gate blocked instead and listed the same file in
+        its own message, which looked like a pass.
+        """
+        wanted = (contains,) if isinstance(contains, str) else contains
         seen = observed or {}
         reason: str = seen.get("reason", "")
-        ok = bool(observed) and seen.get("decision") == "block" and contains in reason
-        self.record(step, f'decision=block, reason contains "{contains}"', observed, ok)
+        ok = (bool(observed) and seen.get("decision") == "block"
+              and all(fragment in reason for fragment in wanted))
+        self.record(step, f"decision=block, reason contains all of {list(wanted)}",
+                    observed, ok)
         return ok
 
     def expect_denied(self, step: str, observed: dict[str, Any] | None, *,
@@ -175,7 +184,8 @@ def run(base: Path) -> dict[str, Any]:
         '    """Sum the items, treating None as zero."""\n'
         "    return sum(item or 0 for item in items) + 1  # deliberate defect\n")
     h.expect_blocked("a failing verify blocks the stop and counts the attempt",
-                     h.hook("stop", hook_event_name="Stop"), contains="attempt 1/3")
+                     h.hook("stop", hook_event_name="Stop"),
+                     contains=("attempt 1/3", "Verification", "exited with"))
 
     print("\n5. verify geciyor ama review borclu")
     (h.project / "src" / "calc.py").write_text(
@@ -183,14 +193,17 @@ def run(base: Path) -> dict[str, Any]:
         '    """Sum the items, ignoring None and negatives."""\n'
         "    return sum(item for item in items if item and item > 0)\n")
     h.expect_blocked("a passing verify still requires the independent review",
-                     h.hook("stop", hook_event_name="Stop"), contains="apex-reviewer")
+                     h.hook("stop", hook_event_name="Stop"),
+                     contains=("apex-reviewer", "Instructions file:"))
 
     print("\n6. review: FAIL verdikten sonra tur bitemez")
     h.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
            agent_transcript_path=h.reviewer_transcript(
                "FAIL", "The change also drops None handling the user asked to keep."))
     h.expect_blocked("a failing review blocks the stop and reports the finding",
-                     h.hook("stop", hook_event_name="Stop"), contains="deviations")
+                     h.hook("stop", hook_event_name="Stop"),
+                     contains=("deviations from the user's instructions",
+                               "drops None handling"))
 
     print("\n7. review: PASS verdikten sonra tur bitebilir")
     h.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
@@ -203,7 +216,8 @@ def run(base: Path) -> dict[str, Any]:
     h.shell("git", "checkout", "-q", "--", ".")
     (h.project / "ESCAPED.md").write_text("written past the edit guard\n")
     h.expect_blocked("a shell write outside the scope blocks the stop",
-                     h.hook("stop", hook_event_name="Stop"), contains="ESCAPED.md")
+                     h.hook("stop", hook_event_name="Stop"),
+                     contains=("outside the approved scope", "ESCAPED.md"))
     (h.project / "ESCAPED.md").unlink()
 
     print("\n9. soru kilidi: soru soran turda dosya duzenlenemez")

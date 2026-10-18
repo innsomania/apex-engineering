@@ -31,6 +31,24 @@ jobs:
         # pyproject excludes the vendored skills and the suites.
         run: mypy --ignore-missing-imports .
 
+  mutations:
+    name: gates are actually checked
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: mutation check
+        # Breaks each gate in a throwaway copy and requires the live check to
+        # notice. Guards against an assertion being loosened later.
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          python Test/run_mutation_check.py --output mutations.json
+
   test:
     name: tests (${{ matrix.os }}, py${{ matrix.python }})
     runs-on: ${{ matrix.os }}

@@ -32,6 +32,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The loaded tree is 31 files and 14,340 words, down from 35 and 17,734.
 
 ### Added
+- `Test/run_mutation_check.py` disables each gate in a throwaway copy of the
+  hook and requires the live check to notice, so the live check's own result
+  means something. CI runs it on every push.
+
 - `Engineering/PROJECT_MEMORY.md` gives the skill a way to not re-derive a
   project every session: a hot tier in the project's own instruction file,
   capped at about 300 words because the host loads it every turn, and a cold
@@ -65,6 +69,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   configuration naming a personal vault note.
 
 ### Fixed
+- The live check's assertions matched a single fragment of a block message, so
+  one gate's block could satisfy another gate's claim. Disabling the scope
+  sweep left the check passing because the review gate blocked instead and
+  named the same file. Every expected fragment is now required.
+
 - The task board configuration pointed at `/Users/<user>/Opsidian/...`, a
   literal path that cannot exist: the history rewrite in this release replaced
   the home directory in the working tree as well as in history, and untracking
