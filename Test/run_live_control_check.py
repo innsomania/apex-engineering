@@ -14,6 +14,7 @@ It runs no model and needs no network. Usage:
 import argparse
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -153,6 +154,24 @@ class Harness:
         return ok
 
 
+def redact(value: Any) -> Any:
+    """Strip machine paths, so a recorded run is publishable as it is written.
+
+    The observations quote the hook's own messages, which name the verify
+    command and the disposable project, so they carry the home directory and a
+    temporary path. Neither is part of the result.
+    """
+    if isinstance(value, str):
+        value = value.replace(str(Path.home()), "<home>")
+        value = re.sub(r"(/private)?/(var|tmp)/folders/[^\s\"']*", "<tmp>", value)
+        return re.sub(r"(/private)?/tmp/[^\s\"']*", "<tmp>", value)
+    if isinstance(value, dict):
+        return {key: redact(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact(item) for item in value]
+    return value
+
+
 def run(base: Path) -> dict[str, Any]:
     h = Harness(base)
     h.build_project()
@@ -249,7 +268,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{result['passed']}/{result['checks']} kontrol gecti")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n")
+        args.output.write_text(
+            json.dumps(redact(result), ensure_ascii=False, indent=2) + "\n")
         print(f"kanit: {args.output}")
     return 0 if result["passed"] == result["checks"] else 1
 

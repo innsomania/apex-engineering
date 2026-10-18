@@ -19,6 +19,9 @@ import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from run_live_control_check import redact  # a sibling script, not a package
+
 ROOT = Path(__file__).resolve().parents[1]
 HOOK_REL = Path("Claude") / "hooks" / "apex_verify_hook.py"
 
@@ -142,9 +145,9 @@ def main(argv: list[str] | None = None) -> int:
           f"({len(MUTATIONS)} mutasyon + saglam baseline)")
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(
+        args.output.write_text(json.dumps(redact(
             {"mutations": len(MUTATIONS), "caught": caught_count - 1,
-             "python": sys.version.split()[0], "results": results},
+             "python": sys.version.split()[0], "results": results}),
             ensure_ascii=False, indent=2) + "\n")
         print(f"kanit: {args.output}")
     return 0 if caught_count == len(results) else 1

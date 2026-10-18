@@ -74,8 +74,8 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   sweep left the check passing because the review gate blocked instead and
   named the same file. Every expected fragment is now required.
 
-- The task board configuration pointed at `/Users/<user>/Opsidian/...`, a
-  literal path that cannot exist: the history rewrite in this release replaced
+- The task board configuration pointed at a literal `/Users/<user>/...` path,
+  which cannot exist: the history rewrite in this release replaced
   the home directory in the working tree as well as in history, and untracking
   the file did not restore it. The board had silently failed to refresh since
   then, which the ledger is designed to survive — it warns on stderr and stays

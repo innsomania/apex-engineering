@@ -58,7 +58,7 @@
       "passed": true,
       "observed": {
         "decision": "block",
-        "reason": "Apex check failed (attempt 1/3). The task is not done. Do not apologize and do not claim completion. If it cannot be resolved within the user's instructions, say exactly what blocks it.\n\nVerification `<home>/.local/bin/python3 -m unittest discover -s tests -t .` exited with 1. Fix the cause and finish again; do not weaken the checks or edit .apex/verify.json.\n\nOutput (last 4000 chars):\nF\n======================================================================\nFAIL: test_skips_none (tests.test_calc.TotalTests.test_skips_none)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/private/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex-live-oj_1w0co/project/tests/test_calc.py\", line 8, in test_skips_none\n    self.assertEqual(total([1, None, 2]), 3)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 4 != 3\n\n----------------------------------------------------------------------\nRan 1 test in 0.001s\n\nFAILED (failures=1)\n"
+        "reason": "Apex check failed (attempt 1/3). The task is not done. Do not apologize and do not claim completion. If it cannot be resolved within the user's instructions, say exactly what blocks it.\n\nVerification `<home>/.local/bin/python3 -m unittest discover -s tests -t .` exited with 1. Fix the cause and finish again; do not weaken the checks or edit .apex/verify.json.\n\nOutput (last 4000 chars):\nF\n======================================================================\nFAIL: test_skips_none (tests.test_calc.TotalTests.test_skips_none)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"<tmp>\", line 8, in test_skips_none\n    self.assertEqual(total([1, None, 2]), 3)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 4 != 3\n\n----------------------------------------------------------------------\nRan 1 test in 0.003s\n\nFAILED (failures=1)\n"
       }
     },
     {
@@ -67,7 +67,7 @@
       "passed": true,
       "observed": {
         "decision": "block",
-        "reason": "Before this turn may end, run the apex-reviewer subagent (Agent tool, subagent_type \"apex-reviewer\") with exactly this delegation message:\n\nProject: /private/var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex-live-oj_1w0co/project\nInstructions file: /var/folders/6h/ss2yckr52h35s9rr7zqlby_c0000gn/T/apex-live-oj_1w0co/hook-state/09516bf23effc9e412f9585d.instructions.md\nFiles changed in this turn:\n- src/calc.py\n\nDo not describe or summarize the user's instructions to it; it reads them from the instructions file. Then act on its verdict."
+        "reason": "Before this turn may end, run the apex-reviewer subagent (Agent tool, subagent_type \"apex-reviewer\") with exactly this delegation message:\n\nProject: <tmp>\nInstructions file: <tmp>\nFiles changed in this turn:\n- src/calc.py\n\nDo not describe or summarize the user's instructions to it; it reads them from the instructions file. Then act on its verdict."
       }
     },
     {
