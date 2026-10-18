@@ -15,6 +15,21 @@ mypy --ignore-missing-imports .
 python3 -m unittest discover -s Test -p 'test_*.py'
 ```
 
+A fourth check proves the controls actually fire, rather than that the hook's
+branches work:
+
+```sh
+python3 Test/run_live_control_check.py --output artifacts/live-controls.json
+```
+
+It builds a disposable git project, turns the controls on through
+`apex_project.py`, and then calls the hook exactly as Claude Code does, in
+order: an out-of-scope edit is refused, a failing verify blocks the stop and
+counts the attempt, a passing verify still demands the review, a `FAIL` verdict
+blocks and quotes the finding, a `PASS` verdict releases the turn, a write made
+through the shell is still caught, and a question turn locks edits. All 12
+observations must pass. It runs no model and needs no network.
+
 Run them from the repository root. 116 tests should pass. `ruff` and `mypy`
 are pinned in `requirements-dev.txt` so a local run and CI agree on what counts
 as a finding; bumping either is a deliberate change, because a new release

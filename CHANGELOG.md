@@ -32,6 +32,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The loaded tree is 31 files and 14,340 words, down from 35 and 17,734.
 
 ### Added
+- `Test/run_live_control_check.py` drives the hook through a real turn on a
+  disposable project and asserts that the verify, scope, and review gates
+  actually fire, which the branch-level suites do not establish. CI runs it on
+  every push; it needs no model and no network.
+
 
 - `LICENSE` (MIT), `CHANGELOG.md`, `CONTRIBUTING.md`, and `SECURITY.md`.
 - `docs/VERIFICATION.md`, separating what a check proved from what it did not.

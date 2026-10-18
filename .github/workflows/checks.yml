@@ -49,3 +49,12 @@ jobs:
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: python -m unittest discover -s Test -p 'test_*.py' -v
+      - name: live controls
+        # Drives the hook through a real turn on a disposable project. The
+        # suites check its branches; this checks that the gates actually fire.
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          git config --global user.email ci@example.com
+          git config --global user.name CI
+          python Test/run_live_control_check.py --output "live-controls.json"

@@ -10,11 +10,46 @@ reading this file.
 | Check | Result |
 | --- | --- |
 | `python3 -m unittest discover -s Test -p 'test_*.py'` | 116 tests pass (observed 2026-10-18). |
+| `python3 Test/run_live_control_check.py` | 12 of 12 observations pass (observed 2026-10-18, Python 3.14.7). |
 | Installation and integrity tests | Included in the suite above. They run in temporary directories and never touch live Codex or Claude settings. |
 
-These cover installer behavior, the task ledger, the verification hook, the
-bridge, and the control adapter. They do not evaluate agent behavior: that
-needs an observed task.
+The suites cover installer behavior, the task ledger, the verification hook,
+the bridge, and the control adapter — that is, the hook's branches.
+
+## The controls actually firing
+
+The live check is the one that answers whether the three gates work rather than
+whether their code paths are reachable. It builds a disposable git project,
+turns the controls on through `apex_project.py`, then calls the hook exactly as
+Claude Code does and asserts what a user would observe:
+
+| Observation | Result |
+| --- | --- |
+| `init` runs the project's real verify command and reports its exit code | pass |
+| An in-scope edit is allowed; an out-of-scope one is refused | pass |
+| The user's own `.apex/verify.json` is refused to the agent | pass |
+| A failing verify blocks the stop as `attempt 1/3` with the real output | pass |
+| A passing verify still blocks until `apex-reviewer` has run | pass |
+| A `FAIL` verdict blocks the stop and quotes the reviewer's finding | pass |
+| A `PASS` verdict releases the turn | pass |
+| A file written past the edit guard through the shell still blocks the stop | pass |
+| A question turn locks edits, and the next working prompt clears the lock | pass |
+
+Record: [live-controls-2026-10-18.json](evaluations/evidence/live-controls-2026-10-18.json).
+It runs no model and needs no network, so CI runs it on every push.
+
+Two notes on what this did and did not establish. The first run failed three
+observations, all from one cause in the check itself rather than in Apex: the
+fixture's verify command named a test runner that was not installed, so verify
+could never pass. That exposed a real weakness in the check — after
+`MAX_ATTEMPTS` the hook deliberately releases the turn with a notice, which an
+unblocked turn and a given-up turn both look like, and the check was counting
+the second as a pass. The assertion now rejects the give-up notice, and
+replaying the first run's output through it turns that false pass into a
+failure.
+
+Neither the suites nor the live check evaluate how well Apex engineers
+anything. That still rests on the single fixture runs below.
 
 ## Behavioral evaluations
 
