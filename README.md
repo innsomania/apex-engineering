@@ -50,11 +50,15 @@ sandbox behavior, is in [docs/INSTALL.md](docs/INSTALL.md).
 ## Develop
 
 ```sh
+pip install -r requirements-dev.txt
+ruff check .
+mypy --ignore-missing-imports .
 python3 -m unittest discover -s Test -p 'test_*.py'
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the checks that run before a change
-lands.
+Every source module passes `mypy --strict`, and GitHub Actions runs the same
+three checks on Python 3.11 to 3.14 across Linux and macOS. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
 

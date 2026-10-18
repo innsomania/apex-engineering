@@ -6,11 +6,22 @@ now.
 
 ## Checks
 
+The same three run locally and in CI, in this order:
+
 ```sh
+pip install -r requirements-dev.txt
+ruff check .
+mypy --ignore-missing-imports .
 python3 -m unittest discover -s Test -p 'test_*.py'
 ```
 
-Run it from the repository root. 116 tests should pass. Tests that need an
+Run them from the repository root. 116 tests should pass. `ruff` and `mypy`
+are pinned in `requirements-dev.txt` so a local run and CI agree on what counts
+as a finding; bumping either is a deliberate change, because a new release
+rejects different code.
+
+Every source module passes `mypy --strict`. `Test/` and the vendored
+`Claude/skills/` are excluded, which `pyproject.toml` explains. Tests that need an
 authenticated Codex CLI, a Unix socket, or a .NET or C++ toolchain skip when
 those are unavailable, so a clean run inside a sandbox is normal — read the
 skip reasons rather than assuming full coverage.

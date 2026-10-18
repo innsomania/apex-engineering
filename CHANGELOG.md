@@ -22,6 +22,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - `LICENSE` (MIT), `CHANGELOG.md`, `CONTRIBUTING.md`, and `SECURITY.md`.
 - `docs/VERIFICATION.md`, separating what a check proved from what it did not.
+- A `ruff` lint gate and `mypy --strict` type checking, configured in
+  `pyproject.toml` and pinned in `requirements-dev.txt`. Every source module
+  passes both; `Test/` and the vendored skills are excluded for stated reasons.
+- GitHub Actions runs lint, types, and the suite on Python 3.11 to 3.14 across
+  Linux and macOS.
 
 ### Removed
 
@@ -36,6 +41,18 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Markdown links left dangling by the moves, plus five that were already broken
   before them.
+- Two closures bound a loop variable late, in the control evaluation and the
+  host test, so either would have read a later iteration's value had the call
+  been deferred.
+- The Codex adapter and the coding bridge read `Popen` standard streams, and
+  joined reader and writer threads, without checking the optionals their own
+  types allow; `dispatch_tool_call` reached `.get` on a value it had not
+  established was a mapping. Each was safe only by the order its conditions
+  happened to evaluate in.
+- `ask_for_prompt` could call a prompt provider that the fixture path leaves
+  unset.
+- The broker could duplicate a closed directory descriptor; it now reports a
+  closed session like any other call after `close()`.
 
 ## [0.1.0] — 2026-10-15
 

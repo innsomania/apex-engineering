@@ -1,0 +1,4 @@
+# Pinned so the local run and CI agree on what a finding is.
+# Update deliberately: a new ruff or mypy release changes which code is rejected.
+ruff==0.17.1
+mypy==2.4.0
