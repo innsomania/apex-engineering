@@ -32,6 +32,10 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The loaded tree is 31 files and 14,340 words, down from 35 and 17,734.
 
 ### Added
+- CI now actually runs. The first run passed all ten jobs, which verified Linux
+  for the first time: the suite and the live check on Ubuntu and macOS across
+  Python 3.11 to 3.14, plus lint, types, and the mutation check.
+
 - `Test/run_mutation_check.py` disables each gate in a throwaway copy of the
   hook and requires the live check to notice, so the live check's own result
   means something. CI runs it on every push.

@@ -100,8 +100,11 @@ Both were also run from a fresh `git clone` into a temporary directory, with
 installation into isolated host directories, to establish that nothing depends
 on this working tree's untracked state.
 
-Linux is **not** verified locally. The CI matrix covers it, and CI has not yet
-run because this repository has no remote.
+Linux is covered by CI rather than locally. The first CI run (2026-10-18,
+`innsomania/apex-engineering`) passed all ten jobs: lint and types, the suite
+and the live check on Ubuntu and macOS across Python 3.11 to 3.14, and the
+mutation check. On Ubuntu the suite ran 116 tests and the live check reported
+12 of 12, so the gates close on Linux as well as macOS.
 
 Two notes on what this did and did not establish. The first run failed three
 observations, all from one cause in the check itself rather than in Apex: the
