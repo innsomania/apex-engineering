@@ -18,6 +18,19 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `docs/VERIFICATION.md`, each observation dated and attributed.
 - Generated evaluation runs default to a gitignored `artifacts/` directory.
 
+- The directories the agent loads hold only guidance. Records that described a
+  component rather than changing a decision moved to `docs/`: the brain design
+  proposal, the control-candidate comparison, the adapted public instruction
+  patterns, the experimental controller's route-coverage matrix, and the dated
+  MCP host observations.
+- `Engineering/MCP_CONTROL.md` merged into `Integrations/MCP_CATALOG.md`, and
+  `TOOLS.md` no longer repeats the probe commands, so MCP has one guidance file.
+- `ARCHITECTURE_AND_DATA.md` dropped the textbook passages and kept the
+  constraints, and `CONTROL_RUNTIME.md` lost two paragraphs it stated twice.
+- Every loaded reference opens by saying which decision it changes, so the agent
+  can stop reading a file that is not about its decision.
+- The loaded tree is 31 files and 14,340 words, down from 35 and 17,734.
+
 ### Added
 
 - `LICENSE` (MIT), `CHANGELOG.md`, `CONTRIBUTING.md`, and `SECURITY.md`.

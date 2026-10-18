@@ -1,39 +1,84 @@
 # Engineering workflow
 
-## Operating rhythm
+This is the first file to read for engineering work. It decides which path the
+task takes and what has to travel with it when work is handed to Coding.
 
-Slow is smooth; smooth is fast. Spend effort on the uncertainty that could change the solution. Work in coherent steps: understand, inspect, decide, implement, verify, stop. Do not introduce artificial delays, repeated approval requests, or mandatory reports for routine changes. Batch independent reads when useful; keep dependent mutations and verification ordered.
-
-Use the [knowledge map](KNOWLEDGE_MAP.md) when a task needs deeper guidance. Load only relevant references. This map broadens available engineering coverage; it does not expand the user's task.
+Slow is smooth; smooth is fast. Spend effort on the uncertainty that could
+change the solution. Work in coherent steps: understand, inspect, decide,
+implement, verify, stop. Do not add artificial delay, repeated approval
+requests, or mandatory reports to a routine change. Use the
+[knowledge map](KNOWLEDGE_MAP.md) to load the one reference a task needs; it
+broadens available coverage without expanding the user's task.
 
 ## Establish the problem
 
-Identify the user's intended behavior, affected component, constraints, and observable acceptance condition. Inspect project instructions and the relevant entry point, callers, dependencies, and tests before proposing a change. Separate evidence from assumptions. Ask only when an unresolved choice changes scope, public behavior, data handling, or a difficult-to-reverse decision; otherwise state a reasonable assumption and proceed.
+Identify the intended behavior, affected component, constraints, and observable
+acceptance condition. Inspect the project's instructions and the relevant entry
+point, callers, dependencies, and tests before proposing a change. Separate
+evidence from assumption.
 
-## Choose the appropriate path
+Ask only when an unresolved choice changes scope, public behavior, data
+handling, or a hard-to-reverse decision. Otherwise state a reasonable
+assumption and proceed.
 
-- **Small change:** trace the existing behavior, choose the smallest coherent patch, and identify a direct verification. Avoid introducing a framework or abstraction for a single use.
-- **New capability:** identify inputs, outputs, ownership, failure modes, and integration boundaries. Explain meaningful alternatives and recommend one. Plan implementation in independently verifiable steps. Use the existing architecture unless a requirement makes it insufficient.
-- **Debugging:** capture the trigger and expected behavior; form a specific hypothesis from code or failure evidence. Test the hypothesis with a targeted observation before changing code. When the defect can recur, add a focused regression test that fails for the original behavior.
-- **Review:** inspect the requested diff and affected contracts. Report actionable correctness, security, or maintainability issues with concrete triggers and locations. Distinguish an actual defect from a stylistic preference. Do not apply fixes unless asked.
-- **Design only:** deliver a decision supported by requirements and tradeoffs; do not start implementation.
+## Choose the path
 
-## Engineering decisions
+- **Small change:** trace the existing behavior, take the smallest coherent
+  patch, and name one direct verification. Do not introduce a framework or an
+  abstraction for a single use.
+- **New capability:** identify inputs, outputs, ownership, failure modes, and
+  integration boundaries. Explain the meaningful alternatives and recommend
+  one. Plan independently verifiable steps. Use the existing architecture
+  unless a requirement makes it insufficient.
+- **Debugging:** capture the trigger and the expected behavior, form a specific
+  hypothesis from code or failure evidence, and test it with a targeted
+  observation before changing code. When the defect can recur, add a focused
+  regression test that fails for the original behavior.
+- **Review:** inspect the requested diff and the affected contracts. Report
+  actionable correctness, security, or maintainability issues with concrete
+  triggers and locations. Separate a defect from a stylistic preference, and do
+  not apply fixes unless asked.
+- **Design only:** deliver the decision and its tradeoffs. Do not start
+  implementing it.
 
-Evaluate only concerns relevant to the requested behavior: correctness, data integrity, security boundaries, concurrency, compatibility, performance, observability, and maintenance cost. Existing project conventions are the starting point. SOLID, separation of concerns, domain modeling, and design patterns are tools for resolving a concrete problem, not requirements to add layers.
+## Decide proportionally
 
-For a service or data boundary, determine ownership, validation, error semantics, cancellation, and whether retries can duplicate side effects. For a public interface, identify callers and compatibility requirements. For performance work, use a representative measurement before selecting an optimization. Keep these checks proportional to the task; do not turn them into an unrelated audit.
+Evaluate only the concerns the requested behavior touches: correctness, data
+integrity, security boundaries, concurrency, compatibility, performance,
+observability, maintenance cost. Existing project conventions are the starting
+point. Keep these checks proportional; do not turn one into an unrelated audit.
+For depth, read [Analysis and decisions](ANALYSIS_AND_DECISIONS.md),
+[Architecture and data](ARCHITECTURE_AND_DATA.md), or
+[Application engineering](APPLICATION_ENGINEERING.md).
 
-## Handoff
+## Hand off to Coding
 
-When the work needs persistent ownership or continuation, record bounded tasks using the [task system](TASK_SYSTEM.md). Assign the relevant role, establish dependencies before starting, and keep acceptance evidence with each task. Use the ready queue to identify eligible work; user scope still determines what may be executed.
+When work needs persistent ownership or continuation, record bounded tasks in
+the [task system](TASK_SYSTEM.md): assign the role, establish dependencies
+before starting, and keep acceptance evidence with each task.
 
-Before handing off to Coding, capture the actual user request verbatim in the bridge request file, preserving its original language and wording. Include references to user-supplied screenshots, mockups, documents, or other assets by project path or durable link after the verbatim text. Carry visual fidelity constraints and other reference-specific details into acceptance conditions. Before claiming a visual match, compare the reference with the rendered result in the relevant viewport and state; code changes and passing tests alone do not establish visual fidelity.
+Capture the user's request verbatim in the bridge request file, preserving its
+original language and wording. After the verbatim text, reference any
+screenshot, mockup, document, or other asset by project path or durable link,
+and carry its fidelity constraints into the acceptance conditions.
 
-The request file is caller-supplied evidence: it is not authenticated and does not create a sandbox or change worker permissions. Treat the original requirements as constraints when interpreting the bounded task contract. Report unresolved conflicts to Engineering instead of silently replacing the requested design.
+The request file is caller-supplied evidence. It is not authenticated, it
+creates no sandbox, and it does not change the worker's permissions. Treat the
+original requirements as constraints when interpreting the task contract, and
+report an unresolved conflict to Engineering instead of substituting a
+different design.
 
-Use the bridge's `instruct` command for a corrective follow-up queued behind the active turn. Use `stop` when the active turn must be interrupted; it closes intake and discards queued follow-ups. A queued correction and an interruption have different effects and must be described accurately.
+Use the bridge's `instruct` command for a corrective follow-up queued behind
+the active turn, and `stop` to interrupt it. They differ: `stop` closes intake
+and discards queued follow-ups. Describe which one was used accurately.
 
-Give Coding the intended behavior, affected boundary, chosen approach, and acceptance condition. Give Test the externally observable expectation and relevant failure cases. If implementation reveals a material assumption was wrong, revise the decision before continuing. Preserve existing user changes and the user's stop, Git, and infrastructure restrictions.
+Give Coding the intended behavior, affected boundary, chosen approach, and
+acceptance condition. Give Test the externally observable expectation and the
+relevant failure cases. If implementation shows a material assumption was
+wrong, revise the decision before continuing. Preserve existing user changes
+and the user's stop, Git, and infrastructure restrictions.
 
-For substantial work, use the compact record in [Analysis and decisions](ANALYSIS_AND_DECISIONS.md). For tool actions, apply [Execution control](EXECUTION_CONTROL.md). Carry unresolved risks into the final result without turning them into unsolicited work.
+Independently check the resulting files and relevant tests before recording
+acceptance. The worker's final message is not verification. Carry unresolved
+risks into the final result without turning them into unsolicited work. For
+tool actions, apply [Execution control](EXECUTION_CONTROL.md).

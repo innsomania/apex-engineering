@@ -1,31 +1,61 @@
 # Delivery and operations
 
-## Reproducible builds and dependencies
+Read this when a change touches a build, a dependency, a release, an alert, or
+an incident. It decides one thing above all: that finishing the work locally
+does not authorize shipping it.
 
-Use declared build commands, lockfiles, SDK/toolchain versions, and existing CI definitions. Record what ran and with which relevant environment. Do not upgrade dependencies or rewrite pipelines as a side effect. When changing a dependency, inspect the specific API, license, compatibility, and relevant advisories for the chosen version.
+## Builds and dependencies
 
-Keep build artifacts, generated files, test fixtures, and secrets distinct. A clean build must not depend on an undocumented workstation state. For packaging changes, check the artifact consumed by users, not merely source tests.
+- Use the declared build commands, lockfiles, toolchain versions, and existing
+  CI definitions. Record what ran and in which environment.
+- Do not upgrade a dependency or rewrite a pipeline as a side effect of
+  something else. When changing one deliberately, inspect that version's API,
+  license, compatibility, and advisories.
+- A clean build must not depend on undocumented workstation state. Keep
+  artifacts, generated files, fixtures, and secrets distinct.
+- For a packaging change, check the artifact users consume, not only that
+  source tests pass.
 
-## Delivery design
+## Release
 
-For an authorized release change, identify artifact identity, configuration injection, environment differences, secrets, compatibility, and rollback limits. Determine whether staged rollout, feature flags, or migration sequencing is warranted. Avoid claiming rollback is safe when persistent data or external effects cannot be reversed.
+- Local completion does not imply authorization to commit, push, merge, deploy,
+  or publish. Respect the user's Git and publishing restrictions.
+- Existing CI commands may publish or mutate infrastructure. Inspect one before
+  running it.
+- For an authorized release change, identify artifact identity, configuration
+  injection, environment differences, secrets, compatibility, and rollback
+  limits.
+- Do not call a rollback safe when persistent data or external effects cannot
+  be reversed.
 
-Respect the user's Git and publishing restrictions. Local completion does not imply authorization to commit, push, merge, deploy, or publish. Existing CI commands may publish or mutate infrastructure; inspect them before running.
+## Observability
 
-## Observability and reliability
+- Choose logs, metrics, and traces that answer a real operational question.
+  Bound metric cardinality and log volume.
+- Provide correlation and error context without logging credentials or
+  sensitive payloads.
+- Link an alert to user impact, ownership, and an actionable response.
+- Process uptime does not establish a healthy application. Verify a backup by
+  restoration evidence when that is in scope.
 
-Choose logs, metrics, and traces that answer a real operational question. Define correlation and useful error context without logging credentials or sensitive payloads. Bound metric cardinality and log volume. Link alerts to user impact, ownership, and an actionable response.
+## Incidents
 
-For reliability tasks, define service indicators and objectives, dependencies, capacity assumptions, and recovery goals. Verify backups by restoration evidence when that is in scope. Process uptime alone does not establish a healthy application.
+- Establish impact, timeline, recent changes, reproduction evidence, and the
+  hypothesis under investigation.
+- Separate mitigation from root-cause correction, and prefer a reversible
+  mitigation within authorization.
+- Preserve evidence; avoid destructive cleanup. Stop and report when required
+  infrastructure is unavailable under the user's environment policy.
+- A post-incident record describes causes, contributing conditions, and
+  concrete prevention. It does not assign blame, and a scoped fix does not
+  become an operational redesign.
 
-## Incidents and debugging
+## Maintenance
 
-Establish impact, timeline, recent changes, reproduction evidence, and the hypothesis under investigation. Separate mitigation from root-cause correction. Prefer reversible mitigations within authorization. Preserve evidence and avoid destructive cleanup. Stop when required infrastructure is unavailable under the user's environment policy.
-
-A post-incident record should describe causes, contributing conditions, and concrete prevention or detection work. Do not assign blame or turn a scoped fix into an unsolicited operational redesign.
-
-## Maintenance and handover
-
-Update directly affected setup instructions, contracts, and examples. Record important limitations and ownership. For deprecation or technical debt, identify the consequence and trigger for future action instead of adding unrelated cleanup to the current task.
-
-Use the [Docker playbook](Integrations/DOCKER_AND_OBSIDIAN.md) when containers serve the requested outcome. The presence of Docker does not justify creating new infrastructure.
+Update the setup instructions, contracts, and examples the change directly
+affects, and record important limitations and ownership. For deprecation or
+technical debt, name the consequence and the trigger for future action instead
+of adding unrelated cleanup to the current task. Use the
+[Docker playbook](Integrations/DOCKER_AND_OBSIDIAN.md) only when a container
+serves the requested outcome; Docker being installed does not justify new
+infrastructure.

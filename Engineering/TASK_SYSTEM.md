@@ -1,5 +1,9 @@
 # Persistent task system
 
+Read this for durable multi-step work, explicit task tracking, or work that
+resumes across sessions. It decides what a task must contain before it may
+start and what evidence completing it requires.
+
 Use [tasks.py](tasks.py) for durable multi-step software work, explicit task tracking, or work that will resume across sessions. Small one-step questions do not require a task record. The ledger is local SQLite, using Python's standard library; no database service or model API is required. Markdown boards are generated views of that ledger.
 
 ## Locations

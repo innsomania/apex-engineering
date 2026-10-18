@@ -44,7 +44,7 @@ Source files remain in this repository. `install.py` links `skills/apex-engineer
 - A development task demonstrates relevant module selection and focused verification.
 - Installation preserves existing instructions and supports removal.
 
-These criteria cover the original MVP. They do not establish mandatory model containment. The next phase is described in [Engineering/BRAIN_DESIGN.md](../Engineering/BRAIN_DESIGN.md).
+These criteria cover the original MVP. They do not establish mandatory model containment. The next phase is described in [BRAIN_DESIGN.md](BRAIN_DESIGN.md).
 
 ## Initial exclusions
 

@@ -1,5 +1,9 @@
 # Docker and Obsidian
 
+Read this when a container or the user's knowledge vault is part of the task.
+It decides whether to use the existing environment or to leave it alone, which
+is usually the answer.
+
 ## Docker: conditional execution environment
 
 Use Docker when the task needs reproducible services, isolated build/test dependencies, or packaging that the project already defines. Prefer existing Dockerfiles and Compose definitions. Inspect mounts, network access, ports, credentials, entrypoints, and side effects before running them.

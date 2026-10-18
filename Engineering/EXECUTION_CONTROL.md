@@ -1,12 +1,19 @@
 # Execution control
 
-This file specifies behavior for the agent. The [experimental controller](CONTROL_RUNTIME.md) now implements a bounded file broker and an isolated Codex CLI adapter, with observed live interruption evidence. It is not enabled as a global host boundary. Report an operation as technically enforced only within its verified scope.
+Read this before any tool action with an effect. It decides whether the action
+is already authorized, and what to do when it is blocked rather than wrong.
+
+This file specifies agent behavior, not enforcement. The
+[experimental controller](CONTROL_RUNTIME.md) implements a bounded file broker
+and an isolated Codex CLI adapter with observed live interruption evidence, and
+is not enabled as a global host boundary. Report an operation as technically
+enforced only within its verified scope.
 
 ## Before an action
 
 Determine the action, target, intended effect, task relevance, and existing authorization. Reuse valid authorization; ask only for a missing consequential decision or genuinely new permission. Separate read-only inspection from mutation, publication, deletion, credential access, and infrastructure changes.
 
-For protected actions, verify that the actual tool route has the required enforcement. A gateway cannot control a direct shell bypass. Do not claim that a natural-language policy prevents arbitrary model actions. Use [control integration guidance](Integrations/CONTROL.md) when designing or configuring that boundary.
+For protected actions, verify that the actual tool route has the required enforcement. A gateway cannot control a direct shell bypass. Do not claim that a natural-language policy prevents arbitrary model actions. The [candidates considered for such a boundary](../docs/research/CONTROL_CANDIDATES.md) are recorded; none is built.
 
 ## States and transitions
 
@@ -30,4 +37,4 @@ Carry scope, stop state, unresolved decisions, and verified results through comp
 
 ## Required evidence for stronger claims
 
-Claiming enforced control requires tests for denial before side effects, policy integrity, direct-tool bypass, failure of the enforcer, and stop behavior on every supported host. Until those exist, describe these Markdown files as behavioral guidance. See [brain design](BRAIN_DESIGN.md) for the unimplemented runtime requirements.
+Claiming enforced control requires tests for denial before side effects, policy integrity, direct-tool bypass, failure of the enforcer, and stop behavior on every supported host. Until those exist, describe these Markdown files as behavioral guidance. See [brain design](../docs/BRAIN_DESIGN.md) for the unimplemented runtime requirements.

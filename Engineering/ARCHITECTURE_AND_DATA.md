@@ -1,37 +1,67 @@
 # Architecture and data
 
-Use the sections touched by the task. Preserve the existing architecture unless the requested outcome requires a change.
+Read this when a change crosses a module boundary, an API contract, or stored
+data. It decides two things: whether the existing structure stays, and what has
+to be true before a change to a contract or a schema is safe.
 
-## Boundaries and domain rules
+Preserve the existing architecture unless the requested outcome requires a
+change. Read only the sections the task touches.
 
-Identify invariants, ownership, dependency direction, and lifecycle. Keep domain decisions separate from transport and persistence when this makes the actual change easier to reason about. Prefer an existing module boundary over introducing a service. Distribution requires a concrete need and brings failure, versioning, deployment, and observation costs.
+## Structure
 
-Use SOLID, cohesion, coupling, dependency inversion, and domain modeling to explain a concrete design choice. Do not add interfaces, factories, repositories, event buses, or generic abstractions without a demonstrated consumer or variation. Track backward compatibility at the boundary rather than assuming an internal refactor is invisible.
+- Prefer an existing module boundary over introducing a service. Distribution
+  needs a concrete requirement and adds failure, versioning, deployment, and
+  observation costs.
+- Do not add an interface, factory, repository, event bus, or generic
+  abstraction without a demonstrated consumer or variation. SOLID and design
+  patterns explain a concrete choice; they are not work to add.
+- Track backward compatibility at the boundary. An internal refactor is not
+  automatically invisible to callers.
 
-## Algorithms and resource behavior
+## Algorithms and resources
 
-Choose data structures based on access patterns, cardinality, ordering, mutation, and memory limits. Analyze time and space complexity where input growth matters; verify constant factors with representative measurements. Specify numeric ranges, precision, overflow behavior, Unicode, locale, and time-zone semantics when they affect correctness.
+- Verify constant factors with a representative measurement before claiming a
+  complexity win.
+- Specify numeric range, precision, overflow, Unicode, locale, and time-zone
+  semantics when they affect correctness.
+- Asynchronous execution does not make an operation thread-safe. Identify
+  shared state, ordering, atomicity, cancellation, and disposal.
+- Bound queues and work; handle backpressure where the workload requires it.
 
-For concurrency, identify shared state, ownership, ordering, atomicity, cancellation, and resource disposal. Do not assume asynchronous execution makes an operation thread-safe. Bound queues and work; handle backpressure and starvation where the workload requires it.
+## API contracts
 
-## API and integration contracts
+- Distinguish an absent value from an explicit empty or null value.
+- Define idempotency and duplicate handling before adding a retry to a
+  side-effecting request.
+- A successful status does not mean the intended side effect completed.
+- Exercise actual boundary behavior in a contract test, not a mock's shape.
+- Document deprecation and migration only when a public contract changes.
 
-Specify input validation, output shape, error semantics, authorization, pagination, timeouts, and compatibility. Distinguish an absent value from an explicit empty/null value. Define idempotency and duplicate handling before adding retries to side-effecting requests. Preserve correlation information without exposing secrets.
+## Data and persistence
 
-Consider API consumers, event consumers, SDKs, and old clients during evolution. Document deprecation and migration only when changing a public contract. Contract tests should exercise actual boundary behavior. Never assume a successful status means the intended side effect completed.
-
-## Data ownership and persistence
-
-Identify authoritative records, keys, uniqueness, relationships, retention, and tenant boundaries. Choose transaction scope and isolation from the invariant being protected. Consider concurrent updates, lost writes, consistency after failure, and audit requirements. Parameterize queries and authorize object access on the trusted side.
-
-Use query plans and representative data to justify indexes or performance work. Evaluate write cost and storage impact. Avoid N+1 queries, unbounded reads, and accidental full-table updates in the changed path. Caches need ownership, keys, expiry/invalidation, and stale-data semantics.
-
-Schema changes require explicit authorization under the user's environment policy. When authorized, plan compatibility, backfill, locking, rollback limits, and verification. A migration rollback does not necessarily restore lost data. Do not run migrations merely to unblock unrelated tests.
+- Choose transaction scope and isolation from the invariant being protected,
+  and account for concurrent updates, lost writes, and consistency after
+  failure.
+- Parameterize queries and authorize object access on the trusted side.
+- Avoid an N+1 query, an unbounded read, and an accidental full-table update in
+  the changed path. Justify an index with a query plan and representative data,
+  not with a guess.
+- A cache needs ownership, keys, expiry or invalidation, and stale-data
+  semantics.
+- A schema change requires explicit authorization under the user's environment
+  policy. When authorized, plan compatibility, backfill, locking, rollback
+  limits, and verification. A rollback does not necessarily restore lost data.
+  Never run a migration to unblock an unrelated test.
 
 ## Distributed behavior
 
-Specify what can fail independently and what callers observe. Define deadlines, retry budgets, deduplication, delivery semantics, ordering, and partial-failure recovery. Do not promise exactly-once business effects solely because a queue advertises a delivery mode. For multi-step updates, consider transactional outbox or compensation only when the actual consistency requirement warrants it.
+- Do not promise an exactly-once business effect because a queue advertises a
+  delivery mode. Define deadlines, retry budgets, deduplication, ordering, and
+  partial-failure recovery against the actual requirement.
+- Distinguish availability from correctness. Assess clock assumptions,
+  replication lag, and partition behavior for the affected workload.
+- State an unresolved tradeoff rather than settling it with an infrastructure
+  choice.
 
-Use health/readiness signals that reflect the service contract. Distinguish availability from correctness. Assess clock assumptions, replication lag, partition behavior, and disaster recovery for the affected workload. Document unresolved tradeoffs rather than hiding them behind infrastructure choices.
-
-For implementation, return to the appropriate [technology guide](KNOWLEDGE_MAP.md) and [Coding workflow](../Coding/WORKFLOW.md).
+For implementation, return to the [technology guide](KNOWLEDGE_MAP.md) and the
+[Coding workflow](../Coding/WORKFLOW.md).

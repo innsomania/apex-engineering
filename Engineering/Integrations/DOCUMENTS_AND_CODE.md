@@ -1,5 +1,9 @@
 # Document and code integration playbook
 
+Read this when evidence lives in a document or in source you have not indexed.
+It decides which reader preserves enough fidelity for the claim you intend to
+make.
+
 ## Document readers
 
 | Candidate | Use | Verification target |

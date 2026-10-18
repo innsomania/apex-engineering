@@ -1,6 +1,11 @@
 # Engineering knowledge map
 
-Use this map to select guidance for the current problem. Do not read every document at startup. The coverage is a maintained working map of software engineering concerns, not a claim of complete knowledge or proven expertise in every domain.
+Use this map to load the one reference the current problem needs. Do not read
+every document at startup. Each target states, in its first lines, which
+decision it changes; stop reading when that is not your decision.
+
+The coverage is a maintained working map of engineering concerns, not a claim of
+complete knowledge or proven expertise in every domain.
 
 | Task signal | Read | Expected result |
 | --- | --- | --- |
@@ -11,7 +16,9 @@ Use this map to select guidance for the current problem. Do not read every docum
 | CI/CD, environments, release, observability, incidents, maintenance | [Delivery and operations](DELIVERY_AND_OPERATIONS.md) | Reproducible change and justified operational checks |
 | Uncertain/current technical fact, browser, PDF, external source | [Research and evidence](RESEARCH_AND_EVIDENCE.md) | Versioned sources, observations, uncertainty |
 | Tool dispatch, permissions, interruption, retries, completion | [Execution control](EXECUTION_CONTROL.md) | Scoped action or explicit blocked state |
-| External tool, upstream repo, Docker, Obsidian, agent instructions | [Integration index](Integrations/INDEX.md) | Appropriate playbook and honest availability status |
+| Service, API, browser, document converter, new connection | [Tools and connections](TOOLS.md) | Host capability used, or the exact missing one named |
+| MCP capability routing or diagnosis | [MCP capability catalog](Integrations/MCP_CATALOG.md) | The right server, discovered in this session |
+| External tool, upstream repo, Docker, Obsidian | [Integration index](Integrations/INDEX.md) | Appropriate playbook and honest availability status |
 | Test strategy and results | [Test workflow](../Test/WORKFLOW.md) | Narrow evidence of behavior; failed/not-run distinguished |
 | Relevant security boundary | [Security workflow](../Security/WORKFLOW.md) | Concrete assets, abuse cases, controls, and limitations |
 

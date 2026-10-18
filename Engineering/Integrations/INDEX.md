@@ -7,7 +7,6 @@ Use only the playbook needed by the current task. Check actual availability and 
 | Need | Playbook | Repositories covered |
 | --- | --- | --- |
 | Connected MCP capabilities and task routing | [MCP capability catalog](MCP_CATALOG.md) | Playwright, Microsoft Learn, OpenAI Developer Docs, Context7, GitHub, MarkItDown; conditional providers |
-| Host boundaries, policy, gateway | [Control](CONTROL.md) | Codex, sandbox-runtime, OPA, Cedar, agentgateway, ContextForge |
 | Destructive shell commands and secret reads | [Execution guard](EXECUTION_GUARD.md) | cc-safety-net; damage-control and Boucle rejected |
 | Step lists and file boundaries before implementation | [Spec planning](SPEC_PLANNING.md) | cc-sdd; spec-kit, superpowers, BMAD, Pimzino rejected |
 | Test-first order during implementation | [Test-first guard](TEST_FIRST_GUARD.md) | tdd-guard |
@@ -15,12 +14,19 @@ Use only the playbook needed by the current task. Check actual availability and 
 | Browser and web evidence | [Browser and research](BROWSER_AND_RESEARCH.md) | Playwright MCP, CLI, engine, Browser Use, Crawl4AI, Firecrawl, SearXNG, Tavily MCP, GPT Researcher |
 | Document and source-code evidence | [Documents and code](DOCUMENTS_AND_CODE.md) | Docling, Docling MCP, MarkItDown, Unstructured, Serena/SolidLSP, Tree-sitter, SCIP |
 | State, evaluations, supplementary filters | [State and evaluation](STATE_AND_EVALUATION.md) | Pydantic, LangGraph, promptfoo, NeMo Guardrails, Presidio, garak; LLM Guard exclusion |
-| Public agent instruction methods | [Codex and Claude patterns](AGENT_INSTRUCTION_PATTERNS.md) | Official public guidance; no private model prompts |
 | Containers and knowledge notes | [Docker and Obsidian](DOCKER_AND_OBSIDIAN.md) | Existing environment and user-designated vault |
 
-The [research report](../../docs/research/GITHUB_RESEARCH_2026-10-15.md) contains the comparative rationale, source links, license caveats, and version snapshot for all 29 repositories. Revalidate version-dependent instructions before a future installation.
+Behavior for a host boundary is in [Execution control](../EXECUTION_CONTROL.md),
+not here. The comparative rationale, source links, license caveats, and version
+snapshot behind these selections are records rather than guidance:
 
-The execution guard was selected after that report and is recorded in its own playbook with the observed decisions behind the selection.
+- [Research report](../../docs/research/GITHUB_RESEARCH_2026-10-15.md) for all 29 repositories.
+- [Control candidates](../../docs/research/CONTROL_CANDIDATES.md) for a policy engine or gateway, none of which is built.
+- [Agent instruction patterns](../../docs/research/AGENT_INSTRUCTION_PATTERNS.md) for the public Codex and Claude practices this skill adapted.
+
+Revalidate a version-dependent instruction before installing anything. The
+execution guard was selected after that report and carries the observed
+decisions in its own playbook.
 
 ## Connection contract
 

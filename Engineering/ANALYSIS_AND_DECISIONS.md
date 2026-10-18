@@ -1,32 +1,63 @@
 # Analysis and decisions
 
+Read this for an ambiguous request, an unfamiliar system, or a choice between
+approaches. It decides what must be established before committing to a design,
+and it holds the working record that carries a decision between stages.
+
 ## Understand the problem
 
-Extract the desired outcome, current behavior, users, affected boundary, constraints, and observable success. Distinguish requirements from the user's proposed implementation. If the implementation conflicts with the outcome, explain the concrete tradeoff and recommend a direction. Ask only questions whose answers materially change behavior, risk, or scope; inspect available evidence first.
+Extract the desired outcome, current behavior, affected boundary, constraints,
+and observable success. Distinguish the requirement from the user's proposed
+implementation; when they conflict, state the concrete tradeoff and recommend a
+direction rather than quietly choosing one.
 
-For a defect, capture the input, expected/actual result, environment, and smallest reproducible path. For a feature, identify valid states and important invalid transitions. Consider measurable latency, availability, accessibility, privacy, compatibility, and cost only where relevant. Do not convert an ordinary task into a requirements ceremony.
+Ask only a question whose answer materially changes behavior, risk, or scope,
+and inspect the available evidence first. For a defect, capture the input,
+expected and actual result, environment, and smallest reproducible path. For a
+feature, identify the valid states and the important invalid transitions.
+Consider latency, availability, accessibility, privacy, compatibility, and cost
+only where they are relevant. Do not turn an ordinary task into a requirements
+ceremony.
 
 ## Understand the system
 
-Start at the relevant entry point and follow callers, data transformations, persistence, and external effects. Inspect manifests, tests, configuration, and generated-code boundaries. Map ownership and dependencies using file/symbol evidence. Distinguish static references from dynamic wiring and runtime observations.
+Start at the relevant entry point and follow callers, data transformations,
+persistence, and external effects. Inspect manifests, tests, configuration, and
+generated-code boundaries. Map ownership using file and symbol evidence, and
+distinguish a static reference from dynamic wiring and from an actual runtime
+observation.
 
-Identify the change surface: direct consumers, public contracts, migrations, asynchronous workers, platform-specific paths, and release coupling. An uninspected dependency remains uncertain. Use semantic tools when available, but inspect their results against source and build context.
+Identify the change surface: direct consumers, public contracts, migrations,
+asynchronous workers, platform-specific paths, release coupling. An uninspected
+dependency stays uncertain. Check a semantic tool's results against source and
+build context.
 
 ## Decide
 
-For a meaningful choice, compare the smallest viable options against the task's actual constraints. Include keeping the current design when it can satisfy the requirement. Evaluate correctness, complexity, operability, security, performance, compatibility, and ongoing maintenance. Avoid arbitrary numeric scoring without measured inputs.
+Compare the smallest viable options against the task's actual constraints, and
+include keeping the current design when it can satisfy the requirement. Avoid
+arbitrary numeric scoring without measured inputs, and do not invent a
+benchmark or claim a pattern is universally best.
 
-Prefer a reversible decision when uncertainty is high. Name what observation would invalidate the recommendation. An ADR is useful for consequential long-lived decisions; a short conversation record suffices for routine work. Do not invent benchmarks or claim that a pattern is universally best.
+Prefer a reversible decision when uncertainty is high, and name the observation
+that would invalidate the recommendation. An ADR suits a consequential
+long-lived decision; a short conversation record suits routine work.
 
 ## Plan and hand off
 
-Define each task by intended behavior, allowed files/components, dependencies, non-goals, and acceptance evidence. Separate Engineering decisions from Coding implementation, Test verification, and Security abuse cases. A role handoff is not permission to spawn agents or expand access. Preserve applicable delegation restrictions.
+Define each task by intended behavior, allowed files, dependencies, non-goals,
+and acceptance evidence. Order work so an uncertain contract is resolved before
+the implementation that depends on it. Keep a task small enough to review and
+large enough to deliver a coherent outcome, and revise the plan only when
+evidence warrants it.
 
-Order work so that uncertain contracts are resolved before dependent implementation. Keep a task small enough to review but large enough to deliver a coherent outcome. Revise the plan only when evidence warrants it. Respect existing authorization rather than repeatedly requesting it.
+A role handoff is not permission to spawn agents or widen access. Respect
+existing authorization instead of requesting it again.
 
-## Compact working record
+## Working record
 
-Use only fields that matter; keep the record in the conversation unless a durable artifact is justified.
+Use only the fields that matter, and keep the record in the conversation unless
+a durable artifact is justified.
 
 | Field | Content |
 | --- | --- |
@@ -35,7 +66,8 @@ Use only fields that matter; keep the record in the conversation unless a durabl
 | Unknowns | Material unanswered questions and assumptions |
 | Decision | Selected approach, tradeoffs, rejected relevant alternatives |
 | Work | Bounded steps and ownership |
-| Verification | Observable acceptance and narrow commands/checks |
+| Verification | Observable acceptance and the narrow commands or checks |
 | State | Active, blocked, stopped, or complete; last verified result |
 
-At completion report changes, evidence, and remaining limitations. Stop after the requested outcome and relevant verification are satisfied.
+At completion report the changes, the evidence, and the remaining limitations.
+Stop once the requested outcome and its relevant verification are satisfied.

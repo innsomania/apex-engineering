@@ -1,5 +1,8 @@
 # Browser and research integration playbook
 
+Read this when the task needs a live page or web evidence. It decides which
+browser or research tool fits, and what its output may be treated as.
+
 ## Browser selection
 
 - [Playwright MCP](https://github.com/microsoft/playwright-mcp): use for stateful inspection through an available controlled MCP route.

@@ -2,7 +2,7 @@
 
 Status: design with incrementally implemented components. Guidance, installation, persistent tasks, limited behavioral evaluations, and an experimental file broker/CLI interruption adapter are implemented. The full mandatory host control boundary is not complete.
 
-Update, October 15, 2026: the [knowledge map](KNOWLEDGE_MAP.md) and [integration playbooks](Integrations/INDEX.md) now implement the Markdown guidance layer. A bounded [experimental runtime adapter](CONTROL_RUNTIME.md) now has isolated CLI evidence. Complete host enforcement and comprehensive behavioral coverage remain unfinished. Public Codex/Claude instruction methods are incorporated as guidance; no model API connection is part of this update.
+Update, October 15, 2026: the [knowledge map](../Engineering/KNOWLEDGE_MAP.md) and [integration playbooks](../Engineering/Integrations/INDEX.md) now implement the Markdown guidance layer. A bounded [experimental runtime adapter](../Engineering/CONTROL_RUNTIME.md) now has isolated CLI evidence. Complete host enforcement and comprehensive behavioral coverage remain unfinished. Public Codex/Claude instruction methods are incorporated as guidance; no model API connection is part of this update.
 
 ## Objective
 

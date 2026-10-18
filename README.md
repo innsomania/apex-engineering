@@ -66,7 +66,7 @@ three checks on Python 3.11 to 3.14 across Linux and macOS. See
 - [What has actually been verified](docs/VERIFICATION.md)
 - [Task system](Engineering/TASK_SYSTEM.md) and [Codex coding bridge](Engineering/CODING_BRIDGE.md)
 - [Integration playbooks](Engineering/Integrations/INDEX.md) and [MCP catalog](Engineering/Integrations/MCP_CATALOG.md)
-- [Original MVP design](docs/DESIGN.md) and the [proposed Engineering brain design](Engineering/BRAIN_DESIGN.md)
+- [Original MVP design](docs/DESIGN.md) and the [proposed Engineering brain design](docs/BRAIN_DESIGN.md)
 
 ## License
 

@@ -1,5 +1,9 @@
 # State and evaluation integration playbook
 
+Read this when choosing a library for state, evaluation, or input filtering.
+It decides which candidate is appropriate and what boundary each still
+requires.
+
 | Candidate | Appropriate role | Required boundary |
 | --- | --- | --- |
 | [Pydantic](https://github.com/pydantic/pydantic) | Validate task/action/evidence records in a future Python runtime | Well-formed data is not permission or truth |

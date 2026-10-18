@@ -1,5 +1,8 @@
 # Apex Coding bridge
 
+Read this when handing an implementation task to a Codex CLI worker. It decides
+how to start, correct, and stop that worker, and what its reports do not prove.
+
 `coding_bridge.py` starts a background Codex CLI process for one active ledger task assigned to Coding. It runs in the selected project directory and exposes status, follow-up, stop, and event-log commands through a local Unix socket.
 
 ## Requirements
@@ -68,4 +71,5 @@ Run the fake-executable tests; they do not invoke a real model:
 python3 -m unittest Test.test_coding_bridge -v
 ```
 
-Observed on October 15, 2026: [7 focused bridge tests passed](../docs/evaluations/evidence/coding-bridge-unit-2026-10-15.log). A [live isolated project run](../docs/evaluations/evidence/coding-bridge-live-postfix-2026-10-15.json) used `gpt-6-luna` with `xhigh`, changed one fixture file, completed two turns with the same Codex thread ID, passed the independently run focused test, and ended in `stopped`. These results cover the tested macOS CLI path and fixture; they do not prove correctness for every project or tool route.
+What has been observed of the bridge, and what it did not establish, is in
+[the verification record](../docs/VERIFICATION.md).
