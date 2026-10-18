@@ -32,6 +32,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The loaded tree is 31 files and 14,340 words, down from 35 and 17,734.
 
 ### Added
+- `Engineering/PROJECT_MEMORY.md` gives the skill a way to not re-derive a
+  project every session: a hot tier in the project's own instruction file,
+  capped at about 300 words because the host loads it every turn, and a cold
+  tier in one note per project in the user's vault, read only when opened. Both
+  carry skeletons. `SKILL.md` names it before the investigation step, since a
+  memory rule found afterwards is useless.
+- `Engineering/Integrations/DOCKER.md` carries the Docker guidance that was
+  sharing a file with the vault procedure.
+
 - `Test/run_live_control_check.py` drives the hook through a real turn on a
   disposable project and asserts that the verify, scope, and review gates
   actually fire, which the branch-level suites do not establish. CI runs it on
@@ -56,6 +65,13 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   configuration naming a personal vault note.
 
 ### Fixed
+- The task board configuration pointed at `/Users/<user>/Opsidian/...`, a
+  literal path that cannot exist: the history rewrite in this release replaced
+  the home directory in the working tree as well as in history, and untracking
+  the file did not restore it. The board had silently failed to refresh since
+  then, which the ledger is designed to survive — it warns on stderr and stays
+  authoritative — so no task data was lost, only the exported note went stale.
+
 
 - Markdown links left dangling by the moves, plus five that were already broken
   before them.

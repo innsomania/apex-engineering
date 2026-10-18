@@ -14,7 +14,7 @@ Use only the playbook needed by the current task. Check actual availability and 
 | Browser and web evidence | [Browser and research](BROWSER_AND_RESEARCH.md) | Playwright MCP, CLI, engine, Browser Use, Crawl4AI, Firecrawl, SearXNG, Tavily MCP, GPT Researcher |
 | Document and source-code evidence | [Documents and code](DOCUMENTS_AND_CODE.md) | Docling, Docling MCP, MarkItDown, Unstructured, Serena/SolidLSP, Tree-sitter, SCIP |
 | State, evaluations, supplementary filters | [State and evaluation](STATE_AND_EVALUATION.md) | Pydantic, LangGraph, promptfoo, NeMo Guardrails, Presidio, garak; LLM Guard exclusion |
-| Containers and knowledge notes | [Docker and Obsidian](DOCKER_AND_OBSIDIAN.md) | Existing environment and user-designated vault |
+| Containers | [Docker](DOCKER.md) | The environment the project already defines |
 
 Behavior for a host boundary is in [Execution control](../EXECUTION_CONTROL.md),
 not here. The comparative rationale, source links, license caveats, and version

@@ -56,6 +56,6 @@ Update the setup instructions, contracts, and examples the change directly
 affects, and record important limitations and ownership. For deprecation or
 technical debt, name the consequence and the trigger for future action instead
 of adding unrelated cleanup to the current task. Use the
-[Docker playbook](Integrations/DOCKER_AND_OBSIDIAN.md) only when a container
+[Docker playbook](Integrations/DOCKER.md) only when a container
 serves the requested outcome; Docker being installed does not justify new
 infrastructure.

@@ -13,9 +13,12 @@ broadens available coverage without expanding the user's task.
 ## Establish the problem
 
 Identify the intended behavior, affected component, constraints, and observable
-acceptance condition. Inspect the project's instructions and the relevant entry
+acceptance condition. Start from what is already recorded about this project:
+its own instruction file and its project note, as
+[Project memory](PROJECT_MEMORY.md) describes. Then inspect the relevant entry
 point, callers, dependencies, and tests before proposing a change. Separate
-evidence from assumption.
+evidence from assumption, and treat the code as authoritative when a note
+disagrees with it.
 
 Ask only when an unresolved choice changes scope, public behavior, data
 handling, or a hard-to-reverse decision. Otherwise state a reasonable
@@ -82,3 +85,9 @@ Independently check the resulting files and relevant tests before recording
 acceptance. The worker's final message is not verification. Carry unresolved
 risks into the final result without turning them into unsolicited work. For
 tool actions, apply [Execution control](EXECUTION_CONTROL.md).
+
+Before reporting the work finished, update
+[project memory](PROJECT_MEMORY.md) when this session established something a
+later one would otherwise re-derive: a decision and its reason, a trap, or a
+correction to something the note got wrong. Record nothing that only mattered
+to this turn.

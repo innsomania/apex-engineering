@@ -38,16 +38,17 @@ Manage substantial work with a clear outcome, bounded steps, dependencies, and a
 
 Paths below are relative to this skill directory, not the user's project. Read only the references needed for the current task.
 
-1. Read [Engineering/WORKFLOW.md](Engineering/WORKFLOW.md). Select the appropriate path: change, debugging, design, or review. Use the [Engineering knowledge map](Engineering/KNOWLEDGE_MAP.md) to load only the specialty needed by the task.
-2. For implementation, read [Coding/WORKFLOW.md](Coding/WORKFLOW.md), then the matching technology reference:
+1. Before investigating a project's code, check for what an earlier session already established: the project's own `CLAUDE.md` or `AGENTS.md`, and the project note described in [Engineering/PROJECT_MEMORY.md](Engineering/PROJECT_MEMORY.md). Re-deriving the same understanding every session is the largest avoidable cost here.
+2. Read [Engineering/WORKFLOW.md](Engineering/WORKFLOW.md). Select the appropriate path: change, debugging, design, or review. Use the [Engineering knowledge map](Engineering/KNOWLEDGE_MAP.md) to load only the specialty needed by the task.
+3. For implementation, read [Coding/WORKFLOW.md](Coding/WORKFLOW.md), then the matching technology reference:
    - `.csproj`, `.sln`, `.slnx`, C# or .NET: [dotnet](Coding/dotnet/GUIDE.md).
    - React web dependencies or JSX/TSX: [react](Coding/react/GUIDE.md).
    - React Native or Expo dependencies: [react-native](Coding/react-native/GUIDE.md). Use React's component guidance too when relevant, but not its browser guidance.
    - `pubspec.yaml` or Dart sources: [dart](Coding/dart/GUIDE.md).
    - Swift packages, Xcode projects, SwiftUI: [swift](Coding/swift/GUIDE.md).
    - C++ sources, CMake or native build projects: [cpp](Coding/cpp/GUIDE.md).
-3. For verification or a testing request, read [Test/WORKFLOW.md](Test/WORKFLOW.md).
-4. For security work, or changes touching authentication, authorization, untrusted input, secrets, sensitive data, or trust boundaries, read [Security/WORKFLOW.md](Security/WORKFLOW.md). Keep the assessment within the requested change.
+4. For verification or a testing request, read [Test/WORKFLOW.md](Test/WORKFLOW.md).
+5. For security work, or changes touching authentication, authorization, untrusted input, secrets, sensitive data, or trust boundaries, read [Security/WORKFLOW.md](Security/WORKFLOW.md). Keep the assessment within the requested change.
 
 In a mixed project, inspect the affected boundary and load both sides only when the task crosses it. Other stacks can use the common workflow; state when specialized guidance is unavailable rather than claiming unsupported coverage.
 

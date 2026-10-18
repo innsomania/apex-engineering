@@ -9,6 +9,7 @@ complete knowledge or proven expertise in every domain.
 
 | Task signal | Read | Expected result |
 | --- | --- | --- |
+| Starting in a project, or finishing work in one | [Project memory](PROJECT_MEMORY.md) | Prior understanding reused rather than re-derived, and durable findings recorded |
 | Persistent tasks, dependency order, ownership, continuation | [Task system](TASK_SYSTEM.md) | Durable state, role assignment, evidence-gated completion |
 | Ambiguous request, existing system, alternatives, planning | [Analysis and decisions](ANALYSIS_AND_DECISIONS.md) | Evidence, constraints, decision, bounded handoff |
 | Module boundaries, algorithms, APIs, databases, distributed systems | [Architecture and data](ARCHITECTURE_AND_DATA.md) | Explicit invariants, contracts, ownership, failure behavior |
