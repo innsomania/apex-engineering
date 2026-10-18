@@ -21,8 +21,14 @@ import threading
 import time
 import uuid
 from collections import deque
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
+
+# Session state and Codex JSONL events are free-form JSON documents.
+State = dict[str, Any]
+Task = dict[str, Any]
 
 MODEL = "gpt-6-luna"
 REASONING_EFFORT = "xhigh"
@@ -46,11 +52,11 @@ class BridgeError(Exception):
     """An expected input, session, or process-control failure."""
 
 
-def utc_now():
+def utc_now() -> str:
     return datetime.now(UTC).isoformat()
 
 
-def _write_private_file(path, data, *, exclusive=False):
+def _write_private_file(path: str | Path, data: bytes, *, exclusive: bool = False) -> None:
     flags = os.O_WRONLY | os.O_CREAT
     flags |= os.O_EXCL if exclusive else os.O_TRUNC
     fd = os.open(path, flags, 0o600)
@@ -64,7 +70,7 @@ def _write_private_file(path, data, *, exclusive=False):
         os.close(fd)
 
 
-def _atomic_state_write(session_dir, state):
+def _atomic_state_write(session_dir: Path, state: State) -> None:
     fd, temporary = tempfile.mkstemp(prefix=".state-", dir=session_dir)
     try:
         os.fchmod(fd, 0o600)
@@ -87,7 +93,7 @@ def _atomic_state_write(session_dir, state):
             os.unlink(temporary)
 
 
-def _load_state(session_dir):
+def _load_state(session_dir: Path) -> State:
     path = session_dir / STATE_NAME
     if path.is_symlink() or not path.is_file():
         raise BridgeError("Session state is missing or is not a regular file")
@@ -98,10 +104,11 @@ def _load_state(session_dir):
         raise BridgeError(f"Cannot read session state: {error}") from error
     if not isinstance(state, dict) or state.get("session_id") != session_dir.name:
         raise BridgeError("Session state is invalid or does not match its directory")
-    return state
+    loaded: State = state
+    return loaded
 
 
-def _public_state(state):
+def _public_state(state: State) -> State:
     keys = (
         "session_id", "phase", "task_id", "project_path", "codex_thread_id",
         "model", "reasoning_effort", "latest_agent_message", "latest_agent_message_truncated",
@@ -113,7 +120,7 @@ def _public_state(state):
     return {key: state[key] for key in keys if key in state}
 
 
-def _state_dir_arg(value):
+def _state_dir_arg(value: str | Path) -> Path:
     raw = Path(value).expanduser()
     if raw.is_symlink():
         raise BridgeError("State directory cannot be a symbolic link")
@@ -125,7 +132,7 @@ def _state_dir_arg(value):
     return path
 
 
-def _session_dir(session_id, state_dir):
+def _session_dir(session_id: str, state_dir: str | Path) -> Path:
     if not SESSION_ID_RE.fullmatch(session_id):
         raise BridgeError("Invalid session ID")
     root = _state_dir_arg(state_dir)
@@ -135,7 +142,7 @@ def _session_dir(session_id, state_dir):
     return path
 
 
-def _read_task(store_path, task_id):
+def _read_task(store_path: str | Path, task_id: str) -> Task:
     store = Path(store_path).expanduser().absolute()
     if store.is_symlink() or not store.is_file():
         raise BridgeError("Task ledger is missing or is not a regular file")
@@ -149,6 +156,7 @@ def _read_task(store_path, task_id):
         raise BridgeError(f"Cannot read task ledger: {error}") from error
     if row is None:
         raise BridgeError(f"Unknown Apex task: {task_id}")
+    task: Task
     try:
         task = json.loads(row[0])
     except (TypeError, json.JSONDecodeError) as error:
@@ -168,7 +176,7 @@ def _read_task(store_path, task_id):
     return task
 
 
-def _read_user_request(request_file):
+def _read_user_request(request_file: str | Path) -> tuple[bytes, str]:
     path = Path(request_file).expanduser()
     try:
         fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK)
@@ -204,7 +212,7 @@ def _read_user_request(request_file):
         os.close(fd)
 
 
-def _initial_prompt(task, original_request):
+def _initial_prompt(task: Task, original_request: str) -> str:
     contract = {
         "task_id": task["id"],
         "project": task["project"],
@@ -232,7 +240,7 @@ def _initial_prompt(task, original_request):
     )
 
 
-def _rpc(session_dir, request, timeout=2.0):
+def _rpc(session_dir: Path, request: dict[str, Any], timeout: float = 2.0) -> dict[str, Any]:
     path = session_dir / SOCKET_NAME
     client = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     client.settimeout(timeout)
@@ -253,6 +261,7 @@ def _rpc(session_dir, request, timeout=2.0):
         client.close()
     if len(response) > MAX_RPC_BYTES or b"\n" not in response:
         raise BridgeError("Supervisor returned an invalid control response")
+    result: object
     try:
         result = json.loads(bytes(response).split(b"\n", 1)[0].decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -264,7 +273,7 @@ def _rpc(session_dir, request, timeout=2.0):
     return result
 
 
-def _mark_disconnected(session_dir, state):
+def _mark_disconnected(session_dir: Path, state: State) -> State:
     if state.get("phase") not in {"stopped", "failed", "disconnected"}:
         state["undelivered_followups"] = state.get("queue_depth", 0)
         state["phase"] = "disconnected"
@@ -278,16 +287,18 @@ def _mark_disconnected(session_dir, state):
     return state
 
 
-def _status(session_dir):
+def _status(session_dir: Path) -> State:
     try:
         result = _rpc(session_dir, {"op": "status"})
-        return result["state"]
+        state_reply: State = result["state"]
+        return state_reply
     except BridgeError:
         state = _load_state(session_dir)
         return _public_state(_mark_disconnected(session_dir, state))
 
 
-def _new_state(session_id, project, task, request_sha256, request_snapshot_path):
+def _new_state(session_id: str, project: Path, task: Task, request_sha256: str,
+               request_snapshot_path: Path) -> State:
     now = utc_now()
     return {
         "schema_version": 1,
@@ -317,11 +328,12 @@ def _new_state(session_id, project, task, request_sha256, request_snapshot_path)
     }
 
 
-def _task_id_path(state_dir, session_id):
+def _task_id_path(state_dir: str | Path, session_id: str) -> Path:
     return _session_dir(session_id, state_dir)
 
 
-def start_session(project_value, task_id, store, request_file, state_dir=DEFAULT_STATE_DIR):
+def start_session(project_value: str | Path, task_id: str, store: str | Path, request_file: str | Path,
+                  state_dir: str | Path = DEFAULT_STATE_DIR) -> str:
     request_bytes, original_request = _read_user_request(request_file)
     project_raw = Path(project_value).expanduser()
     if project_raw.is_symlink():
@@ -397,7 +409,7 @@ def start_session(project_value, task_id, store, request_file, state_dir=DEFAULT
         raise
 
 
-def _signal_group(pid, sig):
+def _signal_group(pid: object, sig: int) -> None:
     if not isinstance(pid, int) or pid <= 0:
         return
     try:
@@ -408,7 +420,7 @@ def _signal_group(pid, sig):
         pass
 
 
-def _cleanup_failed_start(session_dir, supervisor_process):
+def _cleanup_failed_start(session_dir: Path, supervisor_process: subprocess.Popen[bytes]) -> None:
     with contextlib.suppress(BridgeError):
         _rpc(session_dir, {"op": "stop"}, timeout=0.5)
     try:
@@ -430,27 +442,27 @@ def _cleanup_failed_start(session_dir, supervisor_process):
 
 
 class TurnHandle:
-    def __init__(self, process, resumed):
+    def __init__(self, process: subprocess.Popen[bytes], resumed: bool) -> None:
         self.process = process
         self.resumed = resumed
-        self.errors = []
+        self.errors: list[str] = []
         self.error_lock = threading.Lock()
         self.turn_completed_count = 0
-        self.reader = None
-        self.writer = None
-        self.waiter = None
+        self.reader: threading.Thread | None = None
+        self.writer: threading.Thread | None = None
+        self.waiter: threading.Thread | None = None
 
-    def add_error(self, message):
+    def add_error(self, message: str) -> None:
         with self.error_lock:
             self.errors.append(message)
 
-    def error_list(self):
+    def error_list(self) -> list[str]:
         with self.error_lock:
             return list(self.errors)
 
 
 class Supervisor:
-    def __init__(self, session_dir, project, initial_prompt):
+    def __init__(self, session_dir: Path, project: Path, initial_prompt: str) -> None:
         self.session_dir = session_dir
         self.project = project
         self.lock = threading.RLock()
@@ -458,34 +470,34 @@ class Supervisor:
         self.state.update({"supervisor_pid": os.getpid(), "phase": "starting",
                            "child_pid": None, "accepting": True,
                            "queue_depth": 0, "updated_at": utc_now()})
-        self.pending = deque()
+        self.pending: deque[str] = deque()
         self.initial_prompt = initial_prompt
-        self.completions = queue.Queue()
-        self.child = None
-        self.server = None
+        self.completions: queue.Queue[tuple[TurnHandle, int]] = queue.Queue()
+        self.child: TurnHandle | None = None
+        self.server: socket.socket | None = None
         self.stop_requested = False
-        self.signal_requested = None
+        self.signal_requested: threading.Event | None = None
         self.startup_ready = False
         # Held open for the supervisor's lifetime and closed in its cleanup path.
         self.event_file = open(session_dir / EVENTS_NAME, "ab", buffering=0)  # noqa: SIM115
         self._persist()
 
-    def _persist(self):
+    def _persist(self) -> None:
         with self.lock:
             self.state["updated_at"] = utc_now()
             _atomic_state_write(self.session_dir, self.state)
 
-    def _update(self, **changes):
+    def _update(self, **changes: Any) -> None:
         with self.lock:
             self.state.update(changes)
             self.state["updated_at"] = utc_now()
             _atomic_state_write(self.session_dir, self.state)
 
-    def _state_reply(self):
+    def _state_reply(self) -> State:
         with self.lock:
             return _public_state(dict(self.state))
 
-    def _record_event(self, event, handle):
+    def _record_event(self, event: object, handle: "TurnHandle") -> None:
         if not isinstance(event, dict) or not isinstance(event.get("type"), str):
             raise ValueError("JSONL event must be an object with a type")
         kind = event["type"]
@@ -525,8 +537,11 @@ class Supervisor:
                 self.state["updated_at"] = utc_now()
                 _atomic_state_write(self.session_dir, self.state)
 
-    def _read_stdout(self, handle):
+    def _read_stdout(self, handle: "TurnHandle") -> None:
         stream = handle.process.stdout
+        if stream is None:  # Popen was created with stdout=PIPE
+            handle.add_error("Codex process provided no event stream")
+            return
         try:
             for raw in iter(stream.readline, b""):
                 self.event_file.write(raw)
@@ -549,8 +564,11 @@ class Supervisor:
             stream.close()
             self.event_file.flush()
 
-    def _write_stdin(self, handle, text):
+    def _write_stdin(self, handle: "TurnHandle", text: str) -> None:
         stream = handle.process.stdin
+        if stream is None:  # Popen was created with stdin=PIPE
+            handle.add_error("Codex process accepted no prompt stream")
+            return
         try:
             stream.write(text.encode("utf-8"))
             stream.flush()
@@ -560,7 +578,7 @@ class Supervisor:
             with contextlib.suppress(OSError):
                 stream.close()
 
-    def _start_turn(self, text, resumed):
+    def _start_turn(self, text: str, resumed: bool) -> None:
         executable = shutil.which("codex")
         if not executable:
             raise BridgeError("Codex CLI executable was not found on PATH")
@@ -590,10 +608,12 @@ class Supervisor:
         handle.reader.start()
         handle.writer.start()
 
-        def wait_for_turn():
+        def wait_for_turn() -> None:
             code = process.wait()
-            handle.reader.join()
-            handle.writer.join()
+            if handle.reader is not None:
+                handle.reader.join()
+            if handle.writer is not None:
+                handle.writer.join()
             self.completions.put((handle, code))
 
         handle.waiter = threading.Thread(target=wait_for_turn, daemon=True)
@@ -607,7 +627,7 @@ class Supervisor:
             self.state["updated_at"] = utc_now()
             _atomic_state_write(self.session_dir, self.state)
 
-    def _finish_turn(self, handle, return_code):
+    def _finish_turn(self, handle: "TurnHandle", return_code: int) -> None:
         if self.child is not handle:
             return
         if self._observe_stop_signal():
@@ -640,7 +660,7 @@ class Supervisor:
         if self.pending and not self.stop_requested:
             self._start_next()
 
-    def _begin_stop(self):
+    def _begin_stop(self) -> None:
         if self.stop_requested:
             return
         self.stop_requested = True
@@ -651,13 +671,13 @@ class Supervisor:
                                "discarded_followups": self.state.get("discarded_followups", 0) + discarded})
         self._persist()
 
-    def _observe_stop_signal(self):
+    def _observe_stop_signal(self) -> bool:
         if (self.signal_requested is not None and self.signal_requested.is_set()
                 and not self.stop_requested):
             self._begin_stop()
         return self.stop_requested
 
-    def _start_next(self):
+    def _start_next(self) -> None:
         if (self._observe_stop_signal() or self.child is not None or not self.pending):
             return
         text = self.pending.popleft()
@@ -671,7 +691,7 @@ class Supervisor:
                          discarded_followups=self.state.get("discarded_followups", 0) + discarded,
                          last_error=str(error))
 
-    def _terminate_child(self):
+    def _terminate_child(self) -> None:
         handle = self.child
         if handle is None:
             return
@@ -690,7 +710,7 @@ class Supervisor:
             handle.waiter.join(timeout=5)
         self.child = None
 
-    def _handle(self, request):
+    def _handle(self, request: object) -> dict[str, Any]:
         if not isinstance(request, dict):
             return {"ok": False, "error": "Control request must be a JSON object"}
         op = request.get("op")
@@ -725,7 +745,7 @@ class Supervisor:
             return {"ok": True, "stopping": True, "state": self._state_reply()}
         return {"ok": False, "error": "Unknown control operation"}
 
-    def _serve_one(self, connection):
+    def _serve_one(self, connection: socket.socket) -> None:
         connection.settimeout(2.0)
         try:
             data = bytearray()
@@ -752,7 +772,7 @@ class Supervisor:
         finally:
             connection.close()
 
-    def run(self):
+    def run(self) -> None:
         sock_path = self.session_dir / SOCKET_NAME
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.server = server
@@ -813,11 +833,11 @@ class Supervisor:
             self.event_file.close()
 
 
-def _supervisor_entry(session_dir, project):
-    supervisor = None
+def _supervisor_entry(session_dir: Path, project: Path) -> None:
+    supervisor: Supervisor | None = None
     signal_requested = threading.Event()
 
-    def request_stop(_signum, _frame):
+    def request_stop(_signum: int, _frame: Any) -> None:
         signal_requested.set()
 
     signal.signal(signal.SIGTERM, request_stop)
@@ -853,12 +873,12 @@ def _supervisor_entry(session_dir, project):
                 pass
 
 
-def _read_events(session_dir):
+def _read_events(session_dir: Path) -> dict[str, Any]:
     state = _load_state(session_dir)
     path = Path(state["event_log_path"])
     if path.is_symlink() or not path.is_file():
         raise BridgeError("Session event log is missing or is not a regular file")
-    events = []
+    events: list[dict[str, Any]] = []
     with path.open("rb") as stream:
         for number, raw in enumerate(stream, 1):
             try:
@@ -871,7 +891,7 @@ def _read_events(session_dir):
     return {"event_log_path": str(path), "events": events}
 
 
-def _stop_session(session_dir):
+def _stop_session(session_dir: Path) -> State:
     try:
         _rpc(session_dir, {"op": "stop"}, timeout=3.0)
     except BridgeError as error:
@@ -884,11 +904,9 @@ def _stop_session(session_dir):
     while time.monotonic() < deadline:
         try:
             result = _rpc(session_dir, {"op": "status"}, timeout=1.0)
-            state = result["state"]
-            if state.get("phase") == "stopped":
-                return state
-            if state.get("phase") == "failed":
-                return state
+            reported: State = result["state"]
+            if reported.get("phase") in {"stopped", "failed"}:
+                return reported
         except BridgeError:
             state = _load_state(session_dir)
             if state.get("phase") == "stopped":
@@ -899,12 +917,12 @@ def _stop_session(session_dir):
     raise BridgeError("Timed out waiting for the supervisor to stop Codex")
 
 
-def _events_command(session_dir):
+def _events_command(session_dir: Path) -> None:
     result = _read_events(session_dir)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
-def _build_parser():
+def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     start = commands.add_parser("start", help="Start a Coding session for an active ledger task")
@@ -928,7 +946,7 @@ def _build_parser():
     return parser
 
 
-def main(argv=None):
+def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
