@@ -2,9 +2,9 @@
 
 import importlib.util
 import os
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 
 SPEC = importlib.util.spec_from_file_location("apex_install", Path(__file__).resolve().parents[1] / "install.py")
 installer = importlib.util.module_from_spec(SPEC)

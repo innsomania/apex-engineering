@@ -1,12 +1,12 @@
 """Opt-in Codex CLI session with exact project-file permissions."""
 import argparse
 import json
-from pathlib import Path
 import signal
 import threading
+from pathlib import Path
 
-from control import Broker, Denied, relative_path
 from codex_control import run_fixture
+from control import Broker, Denied, relative_path
 
 
 def _allowlist(parser, label, paths):

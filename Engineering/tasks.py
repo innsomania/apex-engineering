@@ -2,17 +2,16 @@
 """Persistent local task ledger. No commands or agents are executed by this tool."""
 
 import argparse
-from contextlib import closing, contextmanager
-from datetime import datetime, timezone
 import hashlib
 import json
 import os
-from pathlib import Path
 import sqlite3
 import sys
 import tempfile
 import uuid
-
+from contextlib import closing, contextmanager
+from datetime import UTC, datetime
+from pathlib import Path
 
 ROLES = ("Engineering", "Coding", "Test", "Security")
 TERMINAL = {"completed", "cancelled"}
@@ -29,7 +28,7 @@ TRANSITIONS = {
 
 
 def timestamp():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def required(value, name):
@@ -170,9 +169,9 @@ class Ledger:
             allowed, target = TRANSITIONS[action]
             if task["state"] not in allowed:
                 raise ValueError(f"Cannot {action} a {task['state']} task")
-            if action in {"start", "complete"}:
-                if any(self.get(db, dep)["state"] != "completed" for dep in task["dependencies"]):
-                    raise ValueError("Dependencies are not completed")
+            if action in {"start", "complete"} and any(
+                    self.get(db, dep)["state"] != "completed" for dep in task["dependencies"]):
+                raise ValueError("Dependencies are not completed")
             if action == "complete":
                 for criterion in task["criteria"]:
                     evidence = task["evidence"].get(criterion["id"])

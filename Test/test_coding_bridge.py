@@ -1,10 +1,10 @@
 """Focused process-control tests using a local fake Codex executable."""
 
-import importlib.util
+import contextlib
 import hashlib
+import importlib.util
 import json
 import os
-from pathlib import Path
 import shlex
 import subprocess
 import sys
@@ -12,8 +12,8 @@ import tempfile
 import threading
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
-
 
 ROOT = Path(__file__).resolve().parents[1]
 TASKS_SPEC = importlib.util.spec_from_file_location("apex_tasks_for_bridge", ROOT / "Engineering/tasks.py")
@@ -153,10 +153,8 @@ class CodingBridgeTests(unittest.TestCase):
 
     def _stop_sessions(self):
         for session_id in self.sessions:
-            try:
+            with contextlib.suppress(OSError, subprocess.TimeoutExpired):
                 self._cli("stop", session_id, "--state-dir", self.state_dir, timeout=8)
-            except (OSError, subprocess.TimeoutExpired):
-                pass
 
     def test_start_uses_task_contract_and_queued_resume_reuses_thread(self):
         task_id = self._create_active_task()
@@ -324,7 +322,7 @@ class CodingBridgeTests(unittest.TestCase):
             bridge._write_private_file(session_dir / bridge.EVENTS_NAME, b"", exclusive=True)
             return bridge.Supervisor(session_dir, self.project.resolve(), ""), session_dir
 
-        completion_supervisor, completion_dir = make_supervisor("a" * 12)
+        completion_supervisor, _completion_dir = make_supervisor("a" * 12)
         try:
             completion_supervisor.signal_requested = threading.Event()
             completion_supervisor.signal_requested.set()
@@ -342,7 +340,7 @@ class CodingBridgeTests(unittest.TestCase):
         finally:
             completion_supervisor.event_file.close()
 
-        socket_supervisor, socket_dir = make_supervisor("b" * 12)
+        socket_supervisor, _socket_dir = make_supervisor("b" * 12)
         try:
             socket_supervisor.signal_requested = threading.Event()
             socket_supervisor.signal_requested.set()
@@ -361,7 +359,7 @@ class CodingBridgeTests(unittest.TestCase):
         empty = self.root / "empty-request.txt"
         empty.write_bytes(b"")
         whitespace = self.root / "whitespace-request.txt"
-        whitespace.write_bytes(" \t\r\n ".encode("utf-8"))
+        whitespace.write_bytes(" \t\r\n ".encode())
         invalid_utf8 = self.root / "invalid-utf8-request.txt"
         invalid_utf8.write_bytes(b"\xff")
         oversized = self.root / "oversized-request.txt"

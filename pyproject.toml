@@ -1,3 +1,15 @@
+# Apex Engineering is installed by linking this directory into a host agent's
+# user directory, not by pip. This file carries project metadata and the
+# settings for the checks in CONTRIBUTING.md; it does not describe a
+# distributable package.
+
+[project]
+name = "apex-engineering"
+version = "0.1.0"
+description = "A software engineering skill for Codex and Claude Code, with host-enforced verification, scope, and review controls."
+requires-python = ">=3.11"
+license = "MIT"
+
 #  pytest runs the same unittest suite that `.apex/verify.json` runs, so that the test-first
 #  guard has test results to judge against. See Engineering/Integrations/TEST_FIRST_GUARD.md.
 #
@@ -7,3 +19,65 @@
 [tool.pytest.ini_options]
 testpaths = ["Test"]
 python_files = ["test_*.py"]
+
+[tool.ruff]
+# Claude/skills holds vendored third-party skills; they are not ours to reformat.
+extend-exclude = ["Claude/skills"]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "F",      # pyflakes
+    "E", "W", # pycodestyle
+    "I",      # import sorting
+    "UP",     # pyupgrade
+    "B",      # bugbear
+    "SIM",    # simplify
+    "S",      # bandit: this project runs shell commands for a living
+    "BLE",    # blind except
+    "TRY",    # exception antipatterns
+    "PL",     # pylint subset
+    "RUF",
+]
+ignore = [
+    # Subprocess use is the point of the installer, the bridge, and the hooks.
+    "S603", "S607",
+    # A nested `with` is often clearer than one combined statement here.
+    "SIM117",
+    # Long messages passed straight to raise read better inline.
+    "TRY003",
+    # Size and shape rules demand restructuring, which is a design decision
+    # rather than a gate. The CLI dispatchers are long on purpose.
+    "PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917", "PLR2004",
+    # Raising inside try is how these modules convert a failure into a reported one.
+    "TRY301", "TRY300",
+    # Turkish and typographic characters appear in strings deliberately.
+    "RUF001", "RUF002", "RUF003",
+    # These modules validate configuration files. A malformed config is a value
+    # problem to report to the user, not a TypeError for a caller to catch.
+    "TRY004",
+    # Reassigning a loop or with-statement name while normalising it is clear here.
+    "PLW2901",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests assert on internals, build fixtures, and run the tools under test.
+# Suites and evaluation runners assert on internals, build fixtures, read the
+# tools' exit codes directly, and import lazily to keep optional deps optional.
+"Test/*" = [
+    "S101", "S105", "S108", "SLF001",
+    "PLW1510", "PLC0415", "RUF012",
+    "E701", "E702", "E501",
+]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+exclude = "^Claude/skills/"
+# The source modules are the contract; the suites get the lighter default.
+[[tool.mypy.overrides]]
+module = ["test_*", "run_*"]
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false

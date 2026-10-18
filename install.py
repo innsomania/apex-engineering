@@ -4,11 +4,11 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import shlex
-import sys
 import stat
+import sys
 import tempfile
+from pathlib import Path
 
 SOURCE = Path(__file__).resolve().parent
 START = b"\n<!-- apex-engineering:begin -->\n"

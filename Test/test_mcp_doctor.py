@@ -3,11 +3,10 @@
 import hashlib
 import importlib.util
 import json
+import unittest
 from pathlib import Path
 from types import SimpleNamespace
-import unittest
 from unittest.mock import patch
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("apex_mcp_doctor", ROOT / "Engineering/mcp_doctor.py")

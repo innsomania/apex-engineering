@@ -1,15 +1,14 @@
 """Task lifecycle and persistence tests; all writes stay in temporary directories."""
 
-from concurrent.futures import ThreadPoolExecutor
 import importlib.util
 import json
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from unittest.mock import patch
-
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("apex_tasks", ROOT / "Engineering/tasks.py")
@@ -216,11 +215,10 @@ class TaskTests(unittest.TestCase):
 
     def test_cli_persists_between_processes_with_spaces(self):
         command = [sys.executable, str(ROOT / "Engineering/tasks.py"), "--store", str(self.ledger.path)]
-        result = subprocess.run(command + ["create", "--project", "demo", "--title", "Small task",
-            "--scope", "One file", "--criterion", "Observed behavior"], capture_output=True, text=True)
+        result = subprocess.run([*command, "create", "--project", "demo", "--title", "Small task", "--scope", "One file", "--criterion", "Observed behavior"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         task_id = json.loads(result.stdout)["id"]
-        result = subprocess.run(command + ["show", task_id], capture_output=True, text=True)
+        result = subprocess.run([*command, "show", task_id], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["title"], "Small task")
 

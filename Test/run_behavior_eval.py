@@ -8,11 +8,10 @@ change only the disposable fixture. No real project or global setting is edited.
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import subprocess
 import tempfile
-
+from pathlib import Path
 
 HEADER = """#pragma once
 struct Document { int owner_id; int tenant_id; };

@@ -2,12 +2,10 @@
 """Run and control a background Codex CLI Coding session for an Apex task."""
 
 import argparse
-from collections import deque
-from datetime import datetime, timezone
+import contextlib
 import hashlib
 import json
 import os
-from pathlib import Path
 import queue
 import re
 import select
@@ -22,7 +20,9 @@ import tempfile
 import threading
 import time
 import uuid
-
+from collections import deque
+from datetime import UTC, datetime
+from pathlib import Path
 
 MODEL = "gpt-6-luna"
 REASONING_EFFORT = "xhigh"
@@ -47,7 +47,7 @@ class BridgeError(Exception):
 
 
 def utc_now():
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _write_private_file(path, data, *, exclusive=False):
@@ -365,7 +365,7 @@ def start_session(project_value, task_id, store, request_file, state_dir=DEFAULT
         _atomic_state_write(session_dir, state)
         raise BridgeError(f"Cannot launch supervisor for session {session_id}: {error}") from error
     try:
-        assert process.stdin is not None
+        assert process.stdin is not None  # noqa: S101 - Popen was created with stdin=PIPE
         process.stdin.write(_initial_prompt(task, original_request).encode("utf-8"))
         process.stdin.close()
         deadline = time.monotonic() + STARTUP_TIMEOUT
@@ -409,10 +409,8 @@ def _signal_group(pid, sig):
 
 
 def _cleanup_failed_start(session_dir, supervisor_process):
-    try:
+    with contextlib.suppress(BridgeError):
         _rpc(session_dir, {"op": "stop"}, timeout=0.5)
-    except BridgeError:
-        pass
     try:
         supervisor_process.wait(timeout=3)
     except subprocess.TimeoutExpired:
@@ -427,10 +425,8 @@ def _cleanup_failed_start(session_dir, supervisor_process):
             except BridgeError:
                 pass
             _signal_group(supervisor_process.pid, signal.SIGKILL)
-            try:
+            with contextlib.suppress(subprocess.TimeoutExpired):
                 supervisor_process.wait(timeout=2)
-            except subprocess.TimeoutExpired:
-                pass
 
 
 class TurnHandle:
@@ -470,7 +466,8 @@ class Supervisor:
         self.stop_requested = False
         self.signal_requested = None
         self.startup_ready = False
-        self.event_file = open(session_dir / EVENTS_NAME, "ab", buffering=0)
+        # Held open for the supervisor's lifetime and closed in its cleanup path.
+        self.event_file = open(session_dir / EVENTS_NAME, "ab", buffering=0)  # noqa: SIM115
         self._persist()
 
     def _persist(self):
@@ -560,10 +557,8 @@ class Supervisor:
         except (BrokenPipeError, OSError) as error:
             handle.add_error(f"Cannot send prompt to Codex: {error}")
         finally:
-            try:
+            with contextlib.suppress(OSError):
                 stream.close()
-            except OSError:
-                pass
 
     def _start_turn(self, text, resumed):
         executable = shutil.which("codex")
@@ -813,10 +808,8 @@ class Supervisor:
             self._terminate_child()
             if self.server is not None:
                 self.server.close()
-            try:
+            with contextlib.suppress(FileNotFoundError):
                 sock_path.unlink()
-            except FileNotFoundError:
-                pass
             self.event_file.close()
 
 
@@ -834,13 +827,13 @@ def _supervisor_entry(session_dir, project):
         supervisor = Supervisor(session_dir, project, initial_prompt)
         supervisor.signal_requested = signal_requested
         supervisor.run()
-    except BaseException as error:
+    except BaseException as error:  # noqa: BLE001 - a supervisor must report any exit, including signals
         if supervisor is not None:
             try:
                 supervisor._terminate_child()
                 supervisor._update(phase="failed", accepting=False, child_pid=None,
                                    last_error=f"Supervisor failed: {type(error).__name__}: {error}")
-            except BaseException:
+            except BaseException:  # noqa: BLE001, S110 - cleanup must not mask the original failure
                 pass
         else:
             try:
@@ -849,14 +842,14 @@ def _supervisor_entry(session_dir, project):
                               "last_error": f"Supervisor failed: {type(error).__name__}: {error}",
                               "updated_at": utc_now()})
                 _atomic_state_write(session_dir, state)
-            except BaseException:
+            except BaseException:  # noqa: BLE001, S110 - cleanup must not mask the original failure
                 pass
     finally:
         if supervisor is not None:
             try:
                 supervisor._terminate_child()
                 supervisor.event_file.close()
-            except BaseException:
+            except BaseException:  # noqa: BLE001, S110 - cleanup must not mask the original failure
                 pass
 
 

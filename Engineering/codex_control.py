@@ -5,27 +5,27 @@ The file broker's rules do not imply containment of native Codex tools.
 """
 import json
 import os
-from pathlib import Path
 import queue
 import re
 import subprocess
 import tempfile
 import threading
 import time
+from pathlib import Path
+
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10 and older; the session fails closed below.
     tomllib = None
 
-DISABLED = (
-    'apps plugins plugin_hooks codex_hooks hooks browser_use browser_use_external '
-    'in_app_browser computer_use connectors enable_mcp_apps code_mode code_mode_only '
-    'js_repl shell_tool unified_exec experimental_use_unified_exec_tool apply_patch_freeform '
-    'multi_agent multi_agent_v2 collab enable_fanout request_permissions request_permissions_tool '
-    'search_tool standalone_web_search web_search web_search_cached web_search_request '
-    'image_generation imagegenext view_image memories memory_tool tool_suggest tool_search '
-    'remote_control remote_plugin workspace_dependencies worktrees'
-).split()
+DISABLED = ['apps', 'plugins', 'plugin_hooks', 'codex_hooks', 'hooks', 'browser_use', 'browser_use_external',
+            'in_app_browser', 'computer_use', 'connectors', 'enable_mcp_apps', 'code_mode', 'code_mode_only',
+            'js_repl', 'shell_tool', 'unified_exec', 'experimental_use_unified_exec_tool', 'apply_patch_freeform',
+            'multi_agent', 'multi_agent_v2', 'collab', 'enable_fanout', 'request_permissions',
+            'request_permissions_tool', 'search_tool', 'standalone_web_search', 'web_search', 'web_search_cached',
+            'web_search_request', 'image_generation', 'imagegenext', 'view_image', 'memories', 'memory_tool',
+            'tool_suggest', 'tool_search', 'remote_control', 'remote_plugin', 'workspace_dependencies',
+            'worktrees']
 
 TOOL = {
     'name': 'apex_file',
@@ -243,7 +243,8 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
                 if method in notifications and 'id' in msg:
                     fail_closed('unexpected_request_denied', 'Codex sent a request where a notification was expected')
                     break
-                if method is not None and method not in notifications and method != 'item/tool/call' and 'id' not in msg:
+                if (method is not None and method not in notifications
+                        and method != 'item/tool/call' and 'id' not in msg):
                     fail_closed('unsupported_notification_denied', 'Codex sent an unsupported notification')
                     break
                 if method == 'item/tool/call':
@@ -288,7 +289,8 @@ def _run_session(broker, first_prompt, prompt_provider, stop_event, timeout, on_
                     if stop_event.is_set():
                         report['status'] = 'stopped_before_turn'
                         break
-                    prompt_text = first_prompt if first_prompt is not None or prompt_provider is None else ask_for_prompt()
+                    prompt_text = (first_prompt if first_prompt is not None or prompt_provider is None
+                                   else ask_for_prompt())
                     if stop_event.is_set():
                         report['status'] = 'stopped_before_turn'
                         break

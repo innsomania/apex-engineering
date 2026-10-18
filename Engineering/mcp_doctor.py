@@ -3,21 +3,21 @@
 
 import argparse
 import asyncio
-from dataclasses import dataclass
 import hashlib
 import importlib.metadata
 import json
 import logging
 import os
-from pathlib import Path
 import re
 import sys
+from dataclasses import dataclass
+from pathlib import Path
+
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10 and older; load_config fails closed below.
     tomllib = None
 from urllib.parse import urlsplit
-
 
 MCP_SDK_VERSION = "2.3.0"
 MAX_TOOLS = 1_024
@@ -135,7 +135,7 @@ def _discover_tools(entry, transport, timeout=8.0, *, sdk=None):
             logging.disable(logging.CRITICAL)
             if importlib.metadata.version("mcp") != MCP_SDK_VERSION:
                 return None, "sdk_version_mismatch"
-            from mcp import Client, StdioServerParameters
+            from mcp import Client, StdioServerParameters  # noqa: PLC0415 - the SDK is optional
         except (ImportError, importlib.metadata.PackageNotFoundError):
             return None, "sdk_unavailable"
         sdk = (Client, StdioServerParameters)
@@ -175,7 +175,7 @@ def _discover_tools(entry, transport, timeout=8.0, *, sdk=None):
         names = asyncio.run(asyncio.wait_for(list_names(), timeout=timeout))
     except TimeoutError:
         return None, "timeout"
-    except Exception:
+    except Exception:  # noqa: BLE001 - any probe failure is reported as one status
         # SDK and transport exceptions can contain URLs, paths, headers, or server data.
         return None, "connection_failed"
     return (names, None) if names is not None else (None, "protocol_error")

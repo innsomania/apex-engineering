@@ -15,9 +15,9 @@ Example:
 
 import argparse
 import json
-from pathlib import Path
 import subprocess
 import sys
+from pathlib import Path
 
 DEFAULT_IGNORES = (".DS_Store",)
 
@@ -71,7 +71,9 @@ def init(root, allow, verify, timeout, review, ignores):
     identity = [] if git(root, "config", "user.email", check=False).stdout.strip() else \
         ["-c", "user.name=Apex", "-c", "user.email=apex@localhost"]
     git(root, *identity, "commit", "-q", "--allow-empty", "-m", "Apex baseline: controls enabled")
-    check = subprocess.run(verify, shell=True, cwd=root, capture_output=True, text=True, timeout=timeout)
+    # The verify command is the project's own shell command, supplied by the user.
+    check = subprocess.run(verify, shell=True, cwd=root, capture_output=True, text=True,  # noqa: S602
+                           timeout=timeout, check=False)
     return {"root": str(root), "git_initialized": created, "ignored": added, "allow": allow,
             "verify": verify, "verify_exit_code": check.returncode,
             "verify_output_tail": (check.stdout + check.stderr)[-1500:], "review": review}

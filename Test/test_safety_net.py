@@ -7,10 +7,10 @@ string; none of them is executed by a shell.
 
 import json
 import os
-from pathlib import Path
 import shutil
 import subprocess
 import unittest
+from pathlib import Path
 
 SAFE = "git status"
 MUST_BLOCK = {

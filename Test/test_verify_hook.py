@@ -2,12 +2,12 @@
 
 import json
 import os
-from pathlib import Path
 import shlex
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 
 HOOK = Path(__file__).resolve().parents[1] / "Claude" / "hooks" / "apex_verify_hook.py"
 
@@ -299,7 +299,7 @@ class VerifyHookTests(unittest.TestCase):
             self.assertEqual(apex_verify_hook.classify(prompt), kind, prompt)
 
     def test_plan_approval_lifts_the_turn_lock(self):
-        result, edit = self.prompt_then_edit("Neden bozuk, düzeltir misin?")
+        _result, edit = self.prompt_then_edit("Neden bozuk, düzeltir misin?")
         self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIsNone(self.hook("unlock", hook_event_name="PostToolUse", tool_name="ExitPlanMode"))
         self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",

@@ -1,14 +1,14 @@
 """MVP readiness checks. All mutations are confined to temporary directories."""
 
 import importlib.util
-from contextlib import ExitStack
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import ExitStack
+from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]

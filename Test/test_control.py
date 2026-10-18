@@ -1,7 +1,4 @@
 """Focused file-broker boundary tests; no model or external service required."""
-from pathlib import Path
-from contextlib import redirect_stderr, redirect_stdout
-from io import StringIO
 import json
 import os
 import signal
@@ -9,12 +6,15 @@ import sys
 import tempfile
 import threading
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Engineering'))
-from control import Broker, Denied
 import codex_control
 import controlled_cli
+from control import Broker
 
 
 class FakeStdin:

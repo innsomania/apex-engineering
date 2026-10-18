@@ -1,12 +1,12 @@
 """Opt-in interactive Engineering host backed by the isolated Codex adapter."""
 import argparse
-from pathlib import Path
 import signal
 import sys
 import threading
+from pathlib import Path
 
-from control import Broker, Denied, relative_path
 from codex_control import run_session
+from control import Broker, Denied, relative_path
 
 
 def _allowlist(parser, label, paths):

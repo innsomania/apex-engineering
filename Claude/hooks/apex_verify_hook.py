@@ -24,14 +24,15 @@ Modes (first argument):
   unlock    PostToolUse (ExitPlanMode): the user approved a plan; lift this turn's lock.
 """
 
+import contextlib
 import fnmatch
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 CONFIG = Path(".apex") / "verify.json"
 SCOPE = Path(".apex") / "scope.json"
@@ -92,7 +93,7 @@ def load_config(root):
 
 
 def _git(root, *args):
-    return subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=30)
+    return subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=30, check=False)
 
 
 def fingerprint(root):
@@ -109,10 +110,8 @@ def fingerprint(root):
         path = root / os.fsdecode(name)
         digest.update(name)
         if path.is_file() and not path.is_symlink():
-            try:
+            with contextlib.suppress(OSError):
                 digest.update(hashlib.sha256(path.read_bytes()).digest())
-            except OSError:
-                pass
     return digest.hexdigest()
 
 
@@ -327,7 +326,7 @@ def baseline(event):
                   "failures": 0, "review_requests": 0})
     prompt = event.get("prompt")
     if isinstance(prompt, str) and prompt.strip():
-        prompts = state.get("prompts", []) + [prompt[:MAX_PROMPT_CHARS]]
+        prompts = [*state.get("prompts", []), prompt[:MAX_PROMPT_CHARS]]
         state["prompts"] = prompts[-MAX_PROMPTS:]
         write_instructions(path, state["prompts"])
     write_state(path, state)
@@ -413,7 +412,8 @@ def require_review(root, path, state, current):
           "reason": "Before this turn may end, run the apex-reviewer subagent (Agent tool, "
                     f"subagent_type \"{REVIEWER}\") with exactly this delegation message:\n\n"
                     f"Project: {root}\nInstructions file: {instructions_path(path)}\n"
-                    "Files changed in this turn:\n" + ("\n".join(f"- {name}" for name in changed) or "- (see git status)")
+                    "Files changed in this turn:\n"
+                    + ("\n".join(f"- {name}" for name in changed) or "- (see git status)")
                     + "\n\nDo not describe or summarize the user's instructions to it; it reads them "
                       "from the instructions file. Then act on its verdict."})
     return False
@@ -485,8 +485,9 @@ def stop(event):
         emit({"systemMessage": "\n".join([*notices, f"Apex verify: {error}"])})
         return
     try:
-        result = subprocess.run(command, shell=True, cwd=root, capture_output=True,
-                                timeout=timeout, stdin=subprocess.DEVNULL)
+        # The verify command is the project's own shell command, supplied by the user.
+        result = subprocess.run(command, shell=True, cwd=root, capture_output=True,  # noqa: S602
+                                timeout=timeout, stdin=subprocess.DEVNULL, check=False)
         code = result.returncode
         output = (result.stdout + result.stderr).decode("utf-8", errors="replace")
     except subprocess.TimeoutExpired as error:

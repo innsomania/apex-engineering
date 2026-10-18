@@ -1,9 +1,10 @@
 """Bounded file broker. The caller must independently contain all other tools."""
-from pathlib import Path
+import contextlib
 import os
 import stat
 import threading
 import uuid
+from pathlib import Path
 
 
 class Denied(ValueError):
@@ -119,10 +120,8 @@ class Broker:
                                 os.fsync(stream.fileno())
                             os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
                         finally:
-                            try:
+                            with contextlib.suppress(FileNotFoundError):
                                 os.unlink(temporary, dir_fd=parent)
-                            except FileNotFoundError:
-                                pass
                         result = 'Written'
                     self.events.append({'event': 'completed', 'operation': operation, 'path': path})
                     return {'success': True, 'text': result}
@@ -131,4 +130,5 @@ class Broker:
             except (ValueError, OSError, UnicodeError) as error:
                 # No raw OS paths, input text, or credentials in the event trace.
                 self.events.append({'event': 'denied', 'reason': type(error).__name__})
-                return {'success': False, 'text': str(error) if isinstance(error, Denied) else 'File operation rejected'}
+                return {'success': False,
+                        'text': str(error) if isinstance(error, Denied) else 'File operation rejected'}

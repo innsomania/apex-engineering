@@ -1,20 +1,19 @@
 """Focused tests for the persistent opt-in Engineering CLI host."""
-from contextlib import redirect_stderr
-from io import StringIO
 import json
-from pathlib import Path
 import queue
 import sys
 import tempfile
 import threading
 import unittest
+from contextlib import redirect_stderr
+from io import StringIO
+from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'Engineering'))
-from control import Broker
 import apex_host
 import codex_control
-
+from control import Broker
 
 OBSERVED_NOTIFICATION_METHODS = [
     'remoteControl/status/changed',
@@ -306,7 +305,7 @@ class ApexHostTests(unittest.TestCase):
                 with patch.object(codex_control, 'command', return_value=['fake-codex']):
                     with patch.object(codex_control.subprocess, 'Popen', return_value=process):
                         report = codex_control.run_session(
-                            broker, lambda: next(prompts), initial_prompt=initial_prompt)
+                            broker, lambda p=prompts: next(p), initial_prompt=initial_prompt)
 
                 self.assertEqual(report['status'], 'failed')
                 self.assertTrue(any(event.endswith('_denied') for event in report['events']))
