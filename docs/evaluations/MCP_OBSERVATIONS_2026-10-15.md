@@ -25,6 +25,10 @@ The Context7 remote URL initiated OAuth during configuration, so this host uses 
 
 Evidence: [browser navigation](evidence/mcp-playwright-live-2026-10-15.jsonl), [four core read calls](evidence/mcp-core-live-2026-10-15.jsonl), and [document conversion plus browser interaction](evidence/mcp-document-browser-live-2026-10-15.jsonl). The first browser attempt used a temporary read-only Codex sandbox and was denied by the host's `never` approval policy; the normal global permission mode succeeded. That failed attempt was replaced in the browser evidence file and remains described here, not counted as a browser failure.
 
+The host details, the live calls that passed, and the GitHub MCP archive
+checksum are recorded in
+[the integration verification](evidence/mcp-integration-2026-10-15.md).
+
 ## Conditional connections, not globally active
 
 | Candidate | Decision |
