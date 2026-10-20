@@ -416,7 +416,8 @@ class VerifyHookTests(unittest.TestCase):
                  "Kardesim bak bana. Odaklan, tekrar dene.": None,
                  "Islemlere devam etsene neden durdun pek anlayamadım ?": None,
                  "Neden durdun, devam et": None, "Why did you stop? Keep going.": None,
-                 "Bu sene ne değişti?": "question", "Docker acmali miyim ?": "question",
+                 "Bu sene ne değişti?": "question", "Parayı kasana mı koydun?": "question",
+                 "Testleri yazsana, neden bekliyorsun?": None, "Docker acmali miyim ?": "question",
                  "Neden bu kadar dusundun atom mu parçalıyorsun ?": "question",
                  "Neden bozuldu?": "question", "How does the cache work": "question",
                  "bu aynisi mi": "question", "dur": "stop", "Bekle!": "stop", "stop it now": "stop"}

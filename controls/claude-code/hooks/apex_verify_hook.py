@@ -266,7 +266,11 @@ QUESTION_PARTICLES = re.compile(r"\b(mi|mu|midir|mudur|miydi|muydu)\b")
 # "düzeltir misin?", "can you add tests?": requests phrased as questions.
 POLITE_REQUEST = re.compile(r"\w[aeiu]r m[iu]s[iu]n\b|\b(can|could|would|will) you\b|\blutfen\b|\bplease\b")
 # "devam etsene, neden durdun?": a go-ahead wrapped in a question is still a go-ahead.
-GO_AHEAD = re.compile(r"\bdevam\b|\w(sene|sana)\b|\b(go on|carry on|keep going|continue)\b")
+# The -sene/-sana urging form is matched only on known verb stems, so "kasana" or "bu sene" stay plain words.
+GO_AHEAD = re.compile(
+    r"\bdevam\b|\b(go on|carry on|keep going|continue)\b|"
+    r"\b(et|yap|bak|gel|git|yaz|ekle|sil|bitir|baslat|basla|calistir|duzelt|gonder|pushla|kur|bas)"
+    r"s[ae]n[ae]\b")
 LOCK_REASONS = {
     "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
             "sentences say what state the work is in, then wait for the user's instruction.",
