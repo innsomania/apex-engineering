@@ -49,7 +49,8 @@ class VerifyHookTests(unittest.TestCase):
         env = {**os.environ, "APEX_HOOK_STATE_DIR": str(self.state)}
         if "_home" in event:
             env["HOME"] = event.pop("_home")
-        result = subprocess.run([sys.executable, str(HOOK), mode], input=json.dumps(event),
+        host = [event.pop("_host")] if "_host" in event else []
+        result = subprocess.run([sys.executable, str(HOOK), mode, *host], input=json.dumps(event),
                                 capture_output=True, text=True, timeout=60, env=env)
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout) if result.stdout.strip() else None
@@ -133,6 +134,27 @@ class VerifyHookTests(unittest.TestCase):
                        ".apex/scope.json"):
             result = self.edit(target if target.startswith("/") else str(self.project / target))
             self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", target)
+
+    def patch(self, *headers):
+        body = "".join(f"*** {header}\n+x\n" for header in headers)
+        return self.hook("guard", _host="codex", hook_event_name="PreToolUse", tool_name="apply_patch",
+                         tool_input={"command": f"*** Begin Patch\n{body}*** End Patch\n"})
+
+    def test_codex_patch_is_refused_when_any_file_in_it_is_out_of_scope(self):
+        self.scope("src/")
+        self.assertIsNone(self.patch("Add File: src/a.py", "Update File: src/b.py"))
+        for headers in (("Add File: src/a.py", "Update File: value.txt"),
+                        ("Delete File: README.md",),
+                        ("Update File: src/a.py", "Move to: lib/a.py"),
+                        ("Update File: .apex/scope.json",),
+                        (f"Add File: {Path(self.temp.name) / 'outside.txt'}",)):
+            result = self.patch(*headers)
+            self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", headers)
+
+    def test_codex_question_turn_refuses_patches(self):
+        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="Neden bozuldu?")
+        result = self.patch("Add File: notes.txt")
+        self.assertIn("blocked for this turn", result["hookSpecificOutput"]["permissionDecisionReason"])
 
     def test_guard_allows_claude_code_plan_and_memory_files(self):
         self.scope("src/")
@@ -296,6 +318,26 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIn("- extra.txt", result["reason"])
         instructions = result["reason"].split("Instructions file: ")[1].split("\n")[0]
         self.assertIn("başka hiçbir şey ekleme", Path(instructions).read_text())
+
+    def test_codex_review_request_names_the_custom_agent(self):
+        self.review_ready()
+        result = self.hook("stop", _host="codex", hook_event_name="Stop")
+        self.assertIn('custom agent (agent_type "apex-reviewer")', result["reason"])
+        self.assertNotIn("subagent_type", result["reason"])
+
+    def test_codex_reviewer_matches_the_claude_reviewer(self):
+        import tomllib
+        agents = HOOK.parents[2]
+        codex = tomllib.loads((agents / "codex" / "agents" / "apex-reviewer.toml").read_text())
+        _, front, body = (agents / "claude-code" / "agents" / "apex-reviewer.md").read_text().split("---\n", 2)
+        self.assertEqual(codex["name"], "apex-reviewer")
+        self.assertIn(f"description: {codex['description']}", front)
+        self.assertEqual(codex["developer_instructions"].strip(), body.strip())
+
+    def test_unknown_host_is_rejected(self):
+        result = subprocess.run([sys.executable, str(HOOK), "guard", "opencode"], input="{}",
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 1)
 
     def test_review_pass_releases_only_the_reviewed_tree(self):
         self.review_ready()

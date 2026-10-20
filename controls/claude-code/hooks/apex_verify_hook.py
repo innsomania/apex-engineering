@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Claude Code hooks that keep an agent inside the user's instructions.
+"""Claude Code and Codex hooks that keep an agent inside the user's instructions.
 
 Opt-in per project, both files at the project root and both changed only by the user:
   .apex/verify.json  {"command": "npm test", "timeout": 600}
@@ -13,14 +13,14 @@ Opt-in per project, both files at the project root and both changed only by the 
                      reported APEX-REVIEW: PASS.
 Projects without these files are untouched, except for the turn lock below, which applies everywhere.
 
-Modes (first argument):
+Modes (first argument; an optional second argument names the host, `claude` or `codex`):
   baseline  UserPromptSubmit: remember the working tree and record the user's message. A message
             that asks a question or says stop (including anger) locks file edits for that turn.
   stop      Stop / SubagentStop: block if files outside the scope changed this turn, then
             run the verify command, then require a passing review; block on failure.
             For the apex-reviewer subagent it records the reviewer's verdict instead.
-  guard     PreToolUse (Write|Edit): refuse edits during a locked turn, to `.apex/` configs, and
-            outside the scope.
+  guard     PreToolUse (Write|Edit, or Codex apply_patch): refuse edits during a locked turn, to
+            `.apex/` configs, and outside the scope; a patch is refused if any file in it is.
   unlock    PostToolUse (ExitPlanMode): the user approved a plan; lift this turn's lock.
 """
 
@@ -36,7 +36,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-# Hook events and the state file are free-form JSON from Claude Code.
+# Hook events and the state file are free-form JSON from the host.
 Event = dict[str, Any]
 State = dict[str, Any]
 
@@ -51,6 +51,11 @@ OUTPUT_TAIL = 4000
 STATE_DIR = Path(os.environ.get("APEX_HOOK_STATE_DIR")
                  or Path.home() / ".claude" / "apex-hooks" / "state")
 GATED_SUBAGENTS = {"apex-coding"}
+# How each host's main agent starts the reviewer; Codex starts custom agents by name.
+SPAWN = {"claude": f"run the {REVIEWER} subagent (Agent tool, subagent_type \"{REVIEWER}\")",
+         "codex": f"spawn the {REVIEWER} custom agent (agent_type \"{REVIEWER}\")"}
+RUN = {"host": "claude"}  # set once by main() from the command line
+PATCH_FILE = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$", re.MULTILINE)
 
 
 def find_root(cwd: str | Path) -> Path | None:
@@ -475,8 +480,7 @@ def require_review(root: Path, path: Path, state: State, current: str | None) ->
         return False
     changed = turn_changes(root, state.get("snapshot")) if snapshot(root) is not None else []
     emit({"decision": "block",
-          "reason": "Before this turn may end, run the apex-reviewer subagent (Agent tool, "
-                    f"subagent_type \"{REVIEWER}\") with exactly this delegation message:\n\n"
+          "reason": f"Before this turn may end, {SPAWN[RUN['host']]} with exactly this delegation message:\n\n"
                     f"Project: {root}\nInstructions file: {instructions_path(path)}\n"
                     "Files changed in this turn:\n"
                     + ("\n".join(f"- {name}" for name in changed) or "- (see git status)")
@@ -602,46 +606,60 @@ def claude_own_file(path: Path) -> bool:
         len(parts) >= 4 and parts[0] == "projects" and parts[2] == "memory")
 
 
-def guard(event: Event) -> None:
-    tool_input = event.get("tool_input") or {}
+def edit_targets(tool_input: dict[str, Any]) -> list[str]:
+    """The files an edit tool call writes: one path, or every file a Codex patch touches."""
     target = tool_input.get("file_path") or tool_input.get("notebook_path")
-    if not isinstance(target, str):
-        return
+    if isinstance(target, str):
+        return [target]
+    patch = tool_input.get("command")
+    return PATCH_FILE.findall(patch) if isinstance(patch, str) else []
+
+
+def guard(event: Event) -> None:
+    tool_input = event.get("tool_input")
+    targets = edit_targets(tool_input) if isinstance(tool_input, dict) else []
     cwd = Path(event.get("cwd") or os.getcwd())
+    for target in targets:
+        reason = refusal(event, cwd, target)
+        if reason:
+            deny(reason)
+            return
+
+
+def refusal(event: Event, cwd: Path, target: str) -> str | None:
+    """Why the edit of one file is refused, or None when it may go ahead."""
     path = Path(target) if Path(target).is_absolute() else cwd / target
     path = path.resolve()
     lock = turn_lock(event.get("session_id", ""))
     if lock and not claude_own_file(path):
-        deny(f"File edits are blocked for this turn. {LOCK_REASONS[lock]}")
-        return
+        return f"File edits are blocked for this turn. {LOCK_REASONS[lock]}"
     if path.parts[-2:] in (CONFIG.parts, SCOPE.parts, REVIEW.parts):
-        deny(f"{path.parts[-2]}/{path.name} holds the user's Apex rules; only the user changes it.")
-        return
+        return f"{path.parts[-2]}/{path.name} holds the user's Apex rules; only the user changes it."
     root = find_root(cwd)
     if root is None:
-        return
+        return None
     try:
         allow = load_scope(root)
     except ValueError as error:
-        deny(f"{error}. Ask the user to fix it before editing files.")
-        return
+        return f"{error}. Ask the user to fix it before editing files."
     if allow is None:
-        return
+        return None
     try:
         relative = path.relative_to(root).as_posix()
     except ValueError:
         if claude_own_file(path):
-            return
-        deny(f"{path} is outside the project; the approved scope covers only {root}. Ask the user.")
-        return
+            return None
+        return f"{path} is outside the project; the approved scope covers only {root}. Ask the user."
     if not in_scope(relative, allow):
-        deny(f"{relative} is outside the approved scope (.apex/scope.json allows: {', '.join(allow)}). "
-             "Do not work around this; ask the user whether this file may be changed.")
+        return (f"{relative} is outside the approved scope (.apex/scope.json allows: {', '.join(allow)}). "
+                "Do not work around this; ask the user whether this file may be changed.")
+    return None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     mode = argv[0] if argv else ""
+    RUN["host"] = argv[1] if len(argv) > 1 else "claude"
     try:
         event = json.load(sys.stdin)
     except ValueError:
@@ -649,8 +667,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not isinstance(event, dict):
         event = {}
     handler = {"baseline": baseline, "stop": stop, "guard": guard, "unlock": unlock}.get(mode)
-    if handler is None:
-        print(f"usage: {Path(__file__).name} baseline|stop|guard|unlock", file=sys.stderr)
+    if handler is None or RUN["host"] not in SPAWN:
+        print(f"usage: {Path(__file__).name} baseline|stop|guard|unlock [claude|codex]", file=sys.stderr)
         return 1
     handler(event)
     if OUTPUT:

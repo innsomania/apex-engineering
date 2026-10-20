@@ -133,6 +133,26 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual((self.home / "settings.json").read_text(), "{broken")
         self.assertFalse((self.home / "skills").exists())
 
+    def test_codex_install_adds_hooks_and_reviewer_and_uninstall_keeps_user_hooks(self):
+        import json
+        user_hook = {"matcher": "Bash", "hooks": [{"type": "command", "command": "my-check"}]}
+        (self.home / "hooks.json").write_text(json.dumps({"hooks": {"PreToolUse": [user_hook]}}))
+        message = installer.configure(self.home, "install", "codex")
+        self.assertIn("/hooks", message)
+        hooks = json.loads((self.home / "hooks.json").read_text())["hooks"]
+        self.assertEqual(set(hooks), {"UserPromptSubmit", "Stop", "SubagentStop", "PreToolUse"})
+        guard = hooks["PreToolUse"][-1]
+        self.assertEqual(guard["matcher"], "apply_patch")
+        self.assertTrue(guard["hooks"][0]["command"].endswith(" guard codex"))
+        self.assertEqual((self.home / "agents/apex-reviewer.toml").resolve(),
+                         installer.CODEX_AGENTS / "apex-reviewer.toml")
+        self.assertIn("hooks=present", installer.configure(self.home, "status", "codex"))
+        installer.configure(self.home, "install", "codex")
+        self.assertEqual(json.loads((self.home / "hooks.json").read_text())["hooks"], hooks)
+        installer.configure(self.home, "uninstall", "codex")
+        self.assertEqual(json.loads((self.home / "hooks.json").read_text()), {"hooks": {"PreToolUse": [user_hook]}})
+        self.assertFalse((self.home / "agents/apex-reviewer.toml").exists())
+
     def test_hosts_use_distinct_blocks(self):
         installer.configure(self.home, "install", "codex")
         with self.assertRaises(ValueError):

@@ -14,6 +14,7 @@ from typing import Any
 SOURCE = Path(__file__).resolve().parent
 CLAUDE_CODE = SOURCE / "controls" / "claude-code"
 AGENTS = CLAUDE_CODE / "agents"
+CODEX_AGENTS = SOURCE / "controls" / "codex" / "agents"
 START = b"\n<!-- apex-engineering:begin -->\n"
 END = b"<!-- apex-engineering:end -->\n"
 
@@ -37,9 +38,11 @@ CLAUDE_TEXT = (
 HOSTS: dict[str, dict[str, Any]] = {
     "codex": {"env": "CODEX_HOME", "default": Path.home() / ".codex",
               "instructions": "AGENTS.md", "override": "AGENTS.override.md", "text": CODEX_TEXT,
-              "links": {"skills/apex-engineering": SOURCE}},
+              "hooks": "hooks.json",
+              "links": {"skills/apex-engineering": SOURCE,
+                        "agents/apex-reviewer.toml": CODEX_AGENTS / "apex-reviewer.toml"}},
     "claude": {"env": "CLAUDE_CONFIG_DIR", "default": Path.home() / ".claude",
-               "instructions": "CLAUDE.md", "override": None, "text": CLAUDE_TEXT, "hooks": True,
+               "instructions": "CLAUDE.md", "override": None, "text": CLAUDE_TEXT, "hooks": "settings.json",
                "links": {"skills/apex-engineering": SOURCE,
                          "agents/apex-coding.md": AGENTS / "apex-coding.md",
                          "agents/apex-reviewer.md": AGENTS / "apex-reviewer.md"}},
@@ -47,23 +50,30 @@ HOSTS: dict[str, dict[str, Any]] = {
 
 
 HOOK_SCRIPT = CLAUDE_CODE / "hooks" / "apex_verify_hook.py"
-HOOKS: tuple[tuple[str, str | None, str, int], ...] = (("UserPromptSubmit", None, "baseline", 60),
-         ("Stop", None, "stop", 900),
-         ("SubagentStop", None, "stop", 900),
-         ("PreToolUse", "Write|Edit|MultiEdit|NotebookEdit", "guard", 10),
-         ("PostToolUse", "ExitPlanMode", "unlock", 10))
+# (event, matcher, mode, timeout) per host. Codex reports every file edit as apply_patch and has no plan tool.
+HOOKS: dict[str, tuple[tuple[str, str | None, str, int], ...]] = {
+    "claude": (("UserPromptSubmit", None, "baseline", 60),
+               ("Stop", None, "stop", 900),
+               ("SubagentStop", None, "stop", 900),
+               ("PreToolUse", "Write|Edit|MultiEdit|NotebookEdit", "guard", 10),
+               ("PostToolUse", "ExitPlanMode", "unlock", 10)),
+    "codex": (("UserPromptSubmit", None, "baseline", 60),
+              ("Stop", None, "stop", 900),
+              ("SubagentStop", None, "stop", 900),
+              ("PreToolUse", "apply_patch", "guard", 10)),
+}
 
 
 def _owned_hook(hook: object) -> bool:
     return isinstance(hook, dict) and HOOK_SCRIPT.name in str(hook.get("command", ""))
 
 
-def merge_hooks(settings: dict[str, Any], install: bool) -> dict[str, Any]:
+def merge_hooks(settings: dict[str, Any], install: bool, host: str = "claude") -> dict[str, Any]:
     """Return settings with Apex hooks removed, then added back when installing."""
     result: dict[str, Any] = json.loads(json.dumps(settings))
     hooks: dict[str, Any] = result.get("hooks", {})
     if not isinstance(hooks, dict):
-        raise ValueError("settings.json 'hooks' is not an object; reconcile it manually.")
+        raise ValueError("The 'hooks' entry is not an object; reconcile it manually.")
     for event in list(hooks):
         groups = []
         for group in hooks[event] if isinstance(hooks[event], list) else []:
@@ -79,9 +89,9 @@ def merge_hooks(settings: dict[str, Any], install: bool) -> dict[str, Any]:
             del hooks[event]
     if install:
         python = shlex.quote(sys.executable)
-        for event, matcher, mode, timeout in HOOKS:
+        for event, matcher, mode, timeout in HOOKS[host]:
             group = {"hooks": [{"type": "command", "timeout": timeout,
-                                "command": f"{python} {shlex.quote(str(HOOK_SCRIPT))} {mode}"}]}
+                                "command": f"{python} {shlex.quote(str(HOOK_SCRIPT))} {mode} {host}"}]}
             if matcher:
                 group = {"matcher": matcher, **group}
             hooks.setdefault(event, []).append(group)
@@ -153,15 +163,15 @@ def configure(home: str | Path, action: str, host: str = "codex") -> str:
         if os.path.lexists(link) and not ours:
             raise ValueError(f"Existing file is not owned by this checkout: {link}")
         owned[link] = ours
-    settings_path = home / "settings.json"
-    settings = read_settings(settings_path) if spec.get("hooks") else None
-    hooks_present = settings is not None and merge_hooks(settings, False) != settings
+    settings_path = home / spec["hooks"]
+    settings = read_settings(settings_path)
+    hooks_present = merge_hooks(settings, False, host) != settings
     override = home / spec["override"] if spec["override"] else None
     override_active = override is not None and override.exists() and override.stat().st_size > 0
     if action == "status":
         state = "linked" if all(owned.values()) else "partial" if any(owned.values()) else "missing"
         return (f"host={host}, skill={state}, instructions={'present' if installed_block else 'missing'}"
-                + (f", hooks={'present' if hooks_present else 'missing'}" if settings is not None else "")
+                + f", hooks={'present' if hooks_present else 'missing'}"
                 + (f", override={'present' if override_active else 'absent'}" if override else ""))
     if action == "install":
         if override is not None and override_active:
@@ -176,8 +186,8 @@ def configure(home: str | Path, action: str, host: str = "codex") -> str:
                     link.parent.mkdir(parents=True, exist_ok=True)
                     link.symlink_to(target, target_is_directory=target.is_dir())
                     created.append(link)
-            if settings is not None and merge_hooks(settings, True) != settings:
-                atomic_write(settings_path, (json.dumps(merge_hooks(settings, True), indent=2,
+            if merge_hooks(settings, True, host) != settings:
+                atomic_write(settings_path, (json.dumps(merge_hooks(settings, True, host), indent=2,
                                                         ensure_ascii=False) + "\n").encode())
             if not installed_block:
                 atomic_write(instructions, data + block(host))
@@ -185,10 +195,13 @@ def configure(home: str | Path, action: str, host: str = "codex") -> str:
             for link in created:
                 link.unlink()
             raise
+        if host == "codex":
+            return (f"Installed Apex Engineering for codex: {home}\n"
+                    "Codex runs new hooks only after you trust them: open Codex and review them with /hooks.")
         return f"Installed Apex Engineering for {host}: {home}"
     if action == "uninstall":
-        if hooks_present and settings is not None:
-            atomic_write(settings_path, (json.dumps(merge_hooks(settings, False), indent=2,
+        if hooks_present:
+            atomic_write(settings_path, (json.dumps(merge_hooks(settings, False, host), indent=2,
                                                     ensure_ascii=False) + "\n").encode())
         if installed_block:
             atomic_write(instructions, outside)
