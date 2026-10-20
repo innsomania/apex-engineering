@@ -8,6 +8,28 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- The repository is cut down to its core: the three project controls, the
+  guides, and what proves them. The layout is now `guides/`, `controls/`,
+  `catalog/`, `tests/`, `docs/`. The previous state is the git tag `pre-slim`.
+- The hook now blocks the end of a turn in which `.apex/verify.json`,
+  `scope.json`, or `review.json` was rewritten, created, or deleted, and it
+  remembers the session's project root so deleting `.apex/` is seen. A
+  `git mv` out of the scope is reported with the vanished path. Each is covered
+  by a test, a live observation, and a mutation.
+- `catalog/skills.json` records the twelve third-party skills chosen for the
+  first stage, in five categories, with the rules for adding more.
+
+### Removed
+
+- The Codex coding bridge, the experimental Codex controller and file broker,
+  the MCP diagnostic tool, the task ledger, and their tests, guides, and
+  evidence.
+- The vendored third-party skills (`kiro-*`, `claude-api`, `mcp-builder`,
+  `skill-creator`, `webapp-testing`, `frontend-design`, `web-artifacts-builder`).
+  They are installed from their sources instead.
+
+### Changed
+
 - Evaluation reports, their evidence, and the repository research snapshot moved
   from `Test/` and `Engineering/` to `docs/`, so the directories the agent loads
   hold only guidance and runnable code.

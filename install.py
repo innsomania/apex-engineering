@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any
 
 SOURCE = Path(__file__).resolve().parent
+CLAUDE_CODE = SOURCE / "controls" / "claude-code"
+AGENTS = CLAUDE_CODE / "agents"
 START = b"\n<!-- apex-engineering:begin -->\n"
 END = b"<!-- apex-engineering:end -->\n"
 
@@ -30,18 +32,6 @@ CLAUDE_TEXT = (
     "references relevant to the task. Existing user and project scope, stop, "
     "Git, and environment restrictions continue to apply.\n"
 )
-SPEC_SKILLS = SOURCE / "Claude" / "skills"
-
-
-def vendored_skill_links() -> dict[str, Path]:
-    """Third-party skills kept under Claude/skills/, so a global Apex install carries them.
-
-    Each one keeps its upstream licence beside it. See Engineering/Integrations/VENDORED_SKILLS.md
-    for what is taken, from where, and under which terms.
-    """
-    return {f"skills/{path.name}": path
-            for path in sorted(SPEC_SKILLS.iterdir())
-            if path.is_dir() and (path / "SKILL.md").is_file()}
 
 
 HOSTS: dict[str, dict[str, Any]] = {
@@ -51,13 +41,12 @@ HOSTS: dict[str, dict[str, Any]] = {
     "claude": {"env": "CLAUDE_CONFIG_DIR", "default": Path.home() / ".claude",
                "instructions": "CLAUDE.md", "override": None, "text": CLAUDE_TEXT, "hooks": True,
                "links": {"skills/apex-engineering": SOURCE,
-                         "agents/apex-coding.md": SOURCE / "Claude" / "agents" / "apex-coding.md",
-                         "agents/apex-reviewer.md": SOURCE / "Claude" / "agents" / "apex-reviewer.md",
-                         **vendored_skill_links()}},
+                         "agents/apex-coding.md": AGENTS / "apex-coding.md",
+                         "agents/apex-reviewer.md": AGENTS / "apex-reviewer.md"}},
 }
 
 
-HOOK_SCRIPT = SOURCE / "Claude" / "hooks" / "apex_verify_hook.py"
+HOOK_SCRIPT = CLAUDE_CODE / "hooks" / "apex_verify_hook.py"
 HOOKS: tuple[tuple[str, str | None, str, int], ...] = (("UserPromptSubmit", None, "baseline", 60),
          ("Stop", None, "stop", 900),
          ("SubagentStop", None, "stop", 900),

@@ -10,11 +10,8 @@ __pycache__/
 coverage.xml
 htmlcov/
 
-# Evaluation runs (regenerate with Test/run_*_eval.py --output)
+# Evaluation runs (regenerate with tests/run_*_eval.py --output)
 artifacts/
-
-# Local task ledger
-Engineering/Tasks/*.sqlite3
 
 # Build output from .NET evaluation fixtures
 [Bb]in/
@@ -28,4 +25,3 @@ Engineering/Tasks/*.sqlite3
 # Host-local tool state
 .claude/
 .playwright-mcp/
-Engineering/Tasks/*.board.json

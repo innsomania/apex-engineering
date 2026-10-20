@@ -25,7 +25,7 @@ When the user asks to turn on Apex controls ("Apex kontrollerini aç"), or a hoo
 
 1. The controls belong in the folder this Claude Code session is opened in — the hooks look there and in its parents, never in subfolders. Never place them in a reference or source-material folder (an original site, a download, a design export); that material is read-only input and must stay outside the allowed scope.
 2. Propose the settings and wait for the user's approval: the allowed patterns (only the files the work will create or change), the verify command (the project's real build, type check, or tests — never a file-existence check), and whether to review (default yes). List what is deliberately excluded, such as the reference folder.
-3. After approval run `python3 <this skill directory>/Claude/apex_project.py init --root <session folder> --allow ... --verify "..." --ignore ...`, ignoring dependency and build output (`node_modules/`, `.next/`, `dist/`, `*.tsbuildinfo`) and reference folders that are their own git repositories.
+3. After approval run `python3 <this skill directory>/controls/apex_project.py init --root <session folder> --allow ... --verify "..." --ignore ...`, ignoring dependency and build output (`node_modules/`, `.next/`, `dist/`, `*.tsbuildinfo`) and reference folders that are their own git repositories.
 4. Report the result, including the verify exit code. A verify command that already fails must be called out, not hidden.
 
 ## Communication and judgment
@@ -38,23 +38,21 @@ Manage substantial work with a clear outcome, bounded steps, dependencies, and a
 
 Paths below are relative to this skill directory, not the user's project. Read only the references needed for the current task.
 
-1. Before investigating a project's code, check for what an earlier session already established: the project's own `CLAUDE.md` or `AGENTS.md`, and the project note described in [Engineering/PROJECT_MEMORY.md](Engineering/PROJECT_MEMORY.md). Re-deriving the same understanding every session is the largest avoidable cost here.
-2. Read [Engineering/WORKFLOW.md](Engineering/WORKFLOW.md). Select the appropriate path: change, debugging, design, or review. Use the [Engineering knowledge map](Engineering/KNOWLEDGE_MAP.md) to load only the specialty needed by the task.
-3. For implementation, read [Coding/WORKFLOW.md](Coding/WORKFLOW.md), then the matching technology reference:
-   - `.csproj`, `.sln`, `.slnx`, C# or .NET: [dotnet](Coding/dotnet/GUIDE.md).
-   - React web dependencies or JSX/TSX: [react](Coding/react/GUIDE.md).
-   - React Native or Expo dependencies: [react-native](Coding/react-native/GUIDE.md). Use React's component guidance too when relevant, but not its browser guidance.
-   - `pubspec.yaml` or Dart sources: [dart](Coding/dart/GUIDE.md).
-   - Swift packages, Xcode projects, SwiftUI: [swift](Coding/swift/GUIDE.md).
-   - C++ sources, CMake or native build projects: [cpp](Coding/cpp/GUIDE.md).
-4. For verification or a testing request, read [Test/WORKFLOW.md](Test/WORKFLOW.md).
-5. For security work, or changes touching authentication, authorization, untrusted input, secrets, sensitive data, or trust boundaries, read [Security/WORKFLOW.md](Security/WORKFLOW.md). Keep the assessment within the requested change.
+1. Before investigating a project's code, check for what an earlier session already established: the project's own `CLAUDE.md` or `AGENTS.md`, and the project note described in [guides/engineering/project-memory.md](guides/engineering/project-memory.md). Re-deriving the same understanding every session is the largest avoidable cost here.
+2. Read [guides/engineering/workflow.md](guides/engineering/workflow.md). Select the appropriate path: change, debugging, design, or review. Use the [engineering index](guides/engineering/index.md) to load only the specialty needed by the task.
+3. For implementation, read [guides/coding/workflow.md](guides/coding/workflow.md), then the matching technology reference:
+   - `.csproj`, `.sln`, `.slnx`, C# or .NET: [dotnet](guides/coding/dotnet.md).
+   - React web dependencies or JSX/TSX: [react](guides/coding/react.md).
+   - React Native or Expo dependencies: [react-native](guides/coding/react-native.md). Use React's component guidance too when relevant, but not its browser guidance.
+   - `pubspec.yaml` or Dart sources: [dart](guides/coding/dart.md).
+   - Swift packages, Xcode projects, SwiftUI: [swift](guides/coding/swift.md).
+   - C++ sources, CMake or native build projects: [cpp](guides/coding/cpp.md).
+4. For verification or a testing request, read [guides/test.md](guides/test.md).
+5. For security work, or changes touching authentication, authorization, untrusted input, secrets, sensitive data, or trust boundaries, read [guides/security.md](guides/security.md). Keep the assessment within the requested change.
 
 In a mixed project, inspect the affected boundary and load both sides only when the task crosses it. Other stacks can use the common workflow; state when specialized guidance is unavailable rather than claiming unsupported coverage.
 
 ## Carry evidence between stages
-
-For durable multi-step work or explicit task management, use the [persistent task system](Engineering/TASK_SYSTEM.md). Resume from the ledger, respect dependencies and recorded scope, and complete tasks only with acceptance evidence. A stop instruction forbids a final ledger update just as it forbids other commands.
 
 Keep a compact working record in conversation or the host's task plan: requested outcome, relevant code evidence, chosen approach, affected files, and verification result. Create a project document only when the user requests one or the work genuinely needs a durable design.
 
@@ -62,20 +60,17 @@ Engineering determines what success means. Coding implements it and feeds discov
 
 ## Dedicated Coding worker
 
-For implementation work, Engineering defines an active Coding task in the ledger with a bounded scope and acceptance criteria, then hands it to a Coding worker. The worker depends on the host:
+In Claude Code, delegate a bounded implementation task to the `apex-coding` subagent with the Agent tool. Pass the original user request verbatim, the scope, the acceptance criteria, and the target project path. Send corrections to the same subagent rather than starting a new one. Independently check the resulting files and relevant tests before reporting the work done; the worker's final message is not verification. If the subagent is unavailable, say so and do not silently substitute another worker.
 
-- **Codex or Codex CLI:** use [the Codex CLI Coding bridge](Engineering/CODING_BRIDGE.md) in the target project. The bridge selects `gpt-6-luna` with `xhigh` reasoning. Read its structured status and events and send follow-up instructions through the bridge.
-- **Claude Code (desktop or CLI):** delegate to the `apex-coding` subagent with the Agent tool. Pass the original user request verbatim, the task ID, scope, acceptance criteria, and the target project path. Send corrections to the same subagent rather than starting a new one. Use the Codex CLI bridge instead only when the user explicitly asks for Codex as the Coding worker; it runs through the shell and requires an authenticated `codex` CLI.
+On a host without subagents, carry out the implementation in the same session and keep the same scope discipline.
 
-In both hosts, Engineering independently checks the resulting files and relevant tests before recording acceptance. Do not treat the worker's final message as verification. If the selected worker is unavailable, report that blocker; do not silently substitute another worker or model.
-
-If this session is already the dedicated Coding worker (launched by the bridge or as the `apex-coding` subagent), implement the assigned task directly. Never start another Coding worker from inside that worker. A trusted stop ends the current work immediately; do not run a final status or ledger command afterward. Full local access is provided by the host configuration and is not a guarantee that task scope is technically enforced.
+If this session is already the `apex-coding` subagent, implement the assigned task directly and never start another worker. A trusted stop ends the current work immediately; run no final command afterward. Access to the machine is not a guarantee that scope is technically enforced; only the project controls enforce it.
 
 ## Tools and delivery
 
-Slow is smooth; smooth is fast. Resolve consequential uncertainty before acting, keep independent reads efficient, and avoid unnecessary ceremony for a small change. Markdown instructions provide working guidance, not a runtime sandbox or a new model. The [integration playbooks](Engineering/Integrations/INDEX.md) describe tool selection and verification; a listed tool is not necessarily installed or connected.
+Slow is smooth; smooth is fast. Resolve consequential uncertainty before acting, keep independent reads efficient, and avoid unnecessary ceremony for a small change. Markdown instructions provide working guidance, not a runtime sandbox or a new model.
 
-Use available project tools and existing connections of the host (Codex or Claude Code). Consult current official documentation when behavior depends on a framework version, API, or unfamiliar feature. Read [Engineering/TOOLS.md](Engineering/TOOLS.md) and the [MCP capability catalog](Engineering/Integrations/MCP_CATALOG.md) when the task requires a service, API, repository connection, live browser, document conversion, or new tool. Discover tools in the active session before claiming availability; global configuration does not prove that a desktop chat has loaded a new server.
+Use the tools and connections the host already provides ([guides/engineering/tools.md](guides/engineering/tools.md)). Consult current official documentation when behavior depends on a framework version, API, or unfamiliar feature. Discover tools in the active session before claiming availability; a description in a file is not evidence that a tool is installed or connected.
 
 Say a task is done only after its verification has run and passed in this session; until then say what remains. Never declare completion and then retract it: if a later check fails, report the failure as a fact and fix it, without apologizing. When a project has `.apex/verify.json`, the Claude Code verification hook runs that command before a turn that changed files may end; treat a blocked stop as an unfinished task, and never edit that file or weaken checks to get past it.
 
