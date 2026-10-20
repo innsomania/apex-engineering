@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CATALOG = json.loads((ROOT / "catalog" / "skills.json").read_text(encoding="utf-8"))
 CATEGORIES = {"engineering-practice", "review-and-quality", "security", "extend-and-guard", "web-and-ui"}
-STATUSES = {"planned", "installed", "removed"}
+STATUSES = {"planned", "installed", "provided", "removed"}
 REQUIRED = {"id", "category", "status", "source", "path", "pinned_ref", "license", "install", "hosts",
             "reviewed", "why", "overlaps_ae", "removal"}
 HOSTS = {"claude-code", "codex", "opencode"}

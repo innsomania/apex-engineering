@@ -36,4 +36,5 @@ A skill enters `skills.json` as `installed` only after all of these are written 
 | --- | --- |
 | `planned` | Chosen, not yet installed or reviewed |
 | `installed` | Passed admission and is installed from its pinned source |
+| `provided` | Already supplied by the host or the account; we do not install a second copy |
 | `removed` | Taken out; kept as a record of why |

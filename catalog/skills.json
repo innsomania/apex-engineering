@@ -44,41 +44,42 @@
     {
       "id": "code-review",
       "category": "review-and-quality",
-      "status": "planned",
+      "status": "installed",
       "source": "https://github.com/anthropics/claude-code",
       "path": "plugins/code-review",
-      "pinned_ref": null,
-      "license": "unverified",
-      "install": "/plugin install code-review (official marketplace)",
+      "pinned_ref": "a0b04d9ddcca (claude-plugins-official, as `claude plugin list` reports it)",
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "claude plugin install code-review@claude-plugins-official  (scope: user)",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Parallel agents with confidence scoring for pull requests.",
       "overlaps_ae": "partial",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
-      "note": "apex-reviewer checks instruction fidelity; this checks the code. Different questions."
+      "removal": "claude plugin uninstall code-review@claude-plugins-official",
+      "note": "Read: one slash command that calls `gh`; no hooks, no network of its own. Installed 2026-10-20; first run in a session still pending."
     },
     {
       "id": "security-guidance",
       "category": "security",
-      "status": "planned",
+      "status": "removed",
       "source": "https://github.com/anthropics/claude-code",
       "path": "plugins/security-guidance",
       "pinned_ref": null,
-      "license": "unverified",
+      "license": "Apache-2.0 (LICENSE read)",
       "install": "/plugin install security-guidance",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
-      "why": "PreToolUse hook that warns on risky patterns while editing.",
+      "reviewed": "2026-10-20",
+      "why": "Pattern warnings on edits.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Dropped 2026-10-20 after reading v2.0.14: it pip-installs the Agent SDK into a venv at every SessionStart, sends the diff to the newest Opus at the end of every turn, and runs an agentic reviewer on git commit and push. That is a second reviewer with its own cost and network use, overlapping security-audit and security-review. The README of the version we first read described only the pattern warnings."
     },
     {
       "id": "security-audit",
@@ -147,55 +148,58 @@
       "source": "https://github.com/anthropics/claude-code",
       "path": "plugins/hookify",
       "pinned_ref": null,
-      "license": "unverified",
+      "license": "Apache-2.0 (LICENSE read)",
       "install": "/plugin install hookify",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Turns an unwanted behaviour into a hook.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Read: four Python hooks (PreToolUse, PostToolUse, Stop, UserPromptSubmit), 10 s timeout each, local rule files only, no network. Costs a process start per event, so install after the trial in a disposable project, not before."
     },
     {
       "id": "plugin-dev",
       "category": "extend-and-guard",
-      "status": "planned",
+      "status": "installed",
       "source": "https://github.com/anthropics/claude-code",
       "path": "plugins/plugin-dev",
-      "pinned_ref": null,
-      "license": "unverified",
-      "install": "/plugin install plugin-dev",
+      "pinned_ref": "a0b04d9ddcca (claude-plugins-official, as `claude plugin list` reports it)",
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "claude plugin install plugin-dev@claude-plugins-official  (scope: user)",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Toolkit for writing plugins and hooks.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "claude plugin uninstall plugin-dev@claude-plugins-official",
+      "note": "Read: skills, agents and validation scripts; no hooks of its own. Installed 2026-10-20; first run in a session still pending."
     },
     {
       "id": "skill-creator",
       "category": "extend-and-guard",
-      "status": "planned",
+      "status": "provided",
       "source": "https://github.com/anthropics/skills",
       "path": "skills/skill-creator",
       "pinned_ref": null,
       "license": "Apache-2.0",
-      "install": "/plugin marketplace add anthropics/skills, or copy the folder, pinned",
+      "install": "none: the account's synced skills already provide skill-creator (~/.claude/skills/synced); a second copy would duplicate it",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Writing and measuring skills; used to keep SKILL.md small.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "not ours to remove; it comes with the account",
+      "note": "Also available as a plugin in claude-plugins-official, which would duplicate it."
     },
     {
       "id": "webapp-testing",
@@ -219,21 +223,22 @@
     {
       "id": "frontend-design",
       "category": "web-and-ui",
-      "status": "planned",
+      "status": "installed",
       "source": "https://github.com/anthropics/skills",
       "path": "skills/frontend-design",
-      "pinned_ref": null,
-      "license": "Apache-2.0",
-      "install": "/plugin install frontend-design, or copy the folder, pinned",
+      "pinned_ref": "a0b04d9ddcca (claude-plugins-official, as `claude plugin list` reports it)",
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "claude plugin install frontend-design@claude-plugins-official  (scope: user)",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Distinctive interface design for React and React Native work.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "claude plugin uninstall frontend-design@claude-plugins-official",
+      "note": "Read: one SKILL.md. Installed 2026-10-20; first run in a session still pending."
     }
   ]
 }
