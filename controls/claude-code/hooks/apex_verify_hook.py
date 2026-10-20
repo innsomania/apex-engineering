@@ -418,6 +418,11 @@ def reviewer_verdict(transcript: str) -> tuple[str | None, str]:
                         reports.append(str(item["input"].get("message") or ""))
     except (OSError, TypeError):
         return None, "The reviewer transcript could not be read."
+    return last_verdict(reports)
+
+
+def last_verdict(reports: Sequence[str]) -> tuple[str | None, str]:
+    """The last APEX-REVIEW verdict among the reviewer's messages and the message that held it."""
     for report in reversed(reports):
         verdicts = re.findall(r"^\s*APEX-REVIEW:\s*(PASS|FAIL)\s*$", report, re.MULTILINE)
         if verdicts:
@@ -432,6 +437,10 @@ def record_review(event: Event) -> None:
     path = state_path(event.get("session_id", ""), root)
     state = read_state(path)
     verdict, report = reviewer_verdict(event.get("agent_transcript_path") or "")
+    final = event.get("last_assistant_message")
+    if verdict is None and isinstance(final, str):
+        # The transcript can be missing (a session that persists nothing); the host also hands over the last message.
+        verdict, report = last_verdict([final])
     current = fingerprint(root)
     if verdict == "PASS":
         state.update({"reviewed": current, "review_failed": None, "review_findings": ""})

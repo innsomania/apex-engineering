@@ -317,6 +317,45 @@ class VerifyHookTests(unittest.TestCase):
         self.assertEqual(result["decision"], "block")
         self.assertIn("unrequested file", result["reason"])
 
+    def test_verdict_is_read_from_the_event_when_the_transcript_is_missing(self):
+        """The host also hands over the reviewer's last message; a missing transcript file must not hide it."""
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        (self.project / ".apex" / "review.json").write_text("{}")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
+        (self.project / "src" / "a.txt").write_text("x\n")
+        absent = str(Path(self.temp.name) / "no-such-transcript.jsonl")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=absent, last_assistant_message="Looks right.\n\nAPEX-REVIEW: PASS")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+
+    def test_a_failing_verdict_in_the_event_still_blocks(self):
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        (self.project / ".apex" / "review.json").write_text("{}")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
+        (self.project / "src" / "a.txt").write_text("x\n")
+        absent = str(Path(self.temp.name) / "no-such-transcript.jsonl")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=absent, last_assistant_message="- a.txt: extra\n\nAPEX-REVIEW: FAIL")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("extra", result["reason"])
+
+    def test_no_verdict_anywhere_counts_as_failure(self):
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        (self.project / ".apex" / "review.json").write_text("{}")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
+        (self.project / "src" / "a.txt").write_text("x\n")
+        absent = str(Path(self.temp.name) / "no-such-transcript.jsonl")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=absent, last_assistant_message="I could not read the file.")
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+
     def test_missing_verdict_counts_as_failure(self):
         self.review_ready()
         self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
