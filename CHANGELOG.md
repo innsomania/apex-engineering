@@ -16,8 +16,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   remembers the session's project root so deleting `.apex/` is seen. A
   `git mv` out of the scope is reported with the vanished path. Each is covered
   by a test, a live observation, and a mutation.
-- `catalog/skills.json` records the twelve third-party skills chosen for the
-  first stage, in five categories, with the rules for adding more.
+- `catalog/skills.json` records the third-party skills Apex relies on, in five
+  categories, with the rules for adding more. Of the twelve first chosen, five
+  are installed from pinned sources, two are provided by the host or account,
+  one waits for a trial, and four were dropped after their contents were read,
+  each with the reason recorded.
 
 ### Removed
 

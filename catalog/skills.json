@@ -5,7 +5,7 @@
     {
       "id": "systematic-debugging",
       "category": "engineering-practice",
-      "status": "planned",
+      "status": "removed",
       "source": "https://github.com/obra/superpowers",
       "path": "skills/systematic-debugging",
       "pinned_ref": null,
@@ -16,16 +16,16 @@
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Root-cause debugging; guides/engineering/workflow.md has only a short debugging paragraph.",
       "overlaps_ae": "partial",
       "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
-      "note": "Superpowers installs as a whole plugin with mandatory workflows; cherry-pick the folder instead."
+      "note": "Dropped 2026-10-20 after reading it. Its process is absolute: investigate before any fix 'even if the user says just apply it', and stop to discuss architecture after three failed fixes. That overrides the user's instruction, which Apex's fidelity rules forbid."
     },
     {
       "id": "using-git-worktrees",
       "category": "engineering-practice",
-      "status": "planned",
+      "status": "removed",
       "source": "https://github.com/obra/superpowers",
       "path": "skills/using-git-worktrees",
       "pinned_ref": null,
@@ -36,10 +36,11 @@
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Isolated worktree per piece of work.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Dropped 2026-10-20 after reading it. It commits a .gitignore change without asking and installs dependencies, which are unrequested changes and an unrequested commit."
     },
     {
       "id": "code-review",
@@ -84,27 +85,27 @@
     {
       "id": "security-audit",
       "category": "security",
-      "status": "planned",
+      "status": "installed",
       "source": "https://github.com/cloudflare/security-audit-skill",
       "path": "skills/security-audit",
-      "pinned_ref": null,
-      "license": "MIT (per repository page)",
-      "install": "npx skills add https://github.com/cloudflare/security-audit-skill --skill security-audit",
+      "pinned_ref": "c1c8a8c14710 (cloudflare/security-audit-skill)",
+      "license": "MIT (repository LICENSE copied beside the skill)",
+      "install": "copied from the repository at the pinned commit to ~/.claude/skills/security-audit (provenance in .apex-pin)",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Multi-phase audit with independently verified, schema-checked findings.",
       "overlaps_ae": "partial",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
-      "note": "Needs an OS-enforced sandbox to run target code; without one it keeps leads as needs_validation."
+      "removal": "delete ~/.claude/skills/security-audit",
+      "note": "Read SKILL.md, the 17 companion files' names, and both validators: they only read files, with no network or process calls. Guidance mode (default) writes nothing; a full audit writes to ~/security-audit-skill/ and spawns many agents with no default budget, and it runs target code only inside an OS sandbox. Its description is broad ('security questions'), so watch for unwanted triggers."
     },
     {
       "id": "threat-model",
       "category": "security",
-      "status": "planned",
+      "status": "removed",
       "source": "https://github.com/anthropics/defending-code-reference-harness",
       "path": "skills/threat-model",
       "pinned_ref": null,
@@ -115,30 +116,30 @@
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Scopes a scan by assets and boundaries before hunting.",
       "overlaps_ae": "partial",
       "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
-      "note": "Reference repository, not maintained. Use the read-only skills only; its autonomous pipeline needs Docker."
+      "note": "Dropped 2026-10-20 after reading it. It is not a standalone skill: it reads docs/security.md and docs/prompting.md from its own repository and runs a checkpoint script there, so copying the one folder breaks it. security-audit's reconnaissance phase covers the same ground."
     },
     {
       "id": "security-review",
       "category": "security",
-      "status": "planned",
+      "status": "provided",
       "source": "https://github.com/anthropics/claude-code-security-review",
       "path": "(built into Claude Code as /security-review)",
       "pinned_ref": null,
       "license": "MIT (per repository page)",
-      "install": "built in; the repository adds a GitHub Action, which is optional",
+      "install": "none: built into Claude Code as /security-review",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Security review of pending changes.",
       "overlaps_ae": "partial",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "removal": "not ours to remove",
       "note": "Not hardened against prompt injection; use on trusted changes only."
     },
     {
@@ -204,21 +205,22 @@
     {
       "id": "webapp-testing",
       "category": "web-and-ui",
-      "status": "planned",
+      "status": "installed",
       "source": "https://github.com/anthropics/skills",
       "path": "skills/webapp-testing",
-      "pinned_ref": null,
-      "license": "Apache-2.0",
-      "install": "/plugin marketplace add anthropics/skills, or copy the folder, pinned",
+      "pinned_ref": "dbd4588f9e10 (anthropics/skills)",
+      "license": "Apache-2.0 (LICENSE.txt read)",
+      "install": "copied from anthropics/skills at the pinned commit to ~/.claude/skills/webapp-testing (provenance in .apex-pin)",
       "hosts": {
         "claude-code": "unverified",
         "codex": "unverified",
         "opencode": "unverified"
       },
-      "reviewed": null,
+      "reviewed": "2026-10-20",
       "why": "Drive and test a running web app with Playwright.",
       "overlaps_ae": "none",
-      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes"
+      "removal": "delete ~/.claude/skills/webapp-testing",
+      "note": "Read SKILL.md, with_server.py and the three examples. with_server.py runs the commands you give it through a shell and polls localhost; it contacts nothing else. Playwright is not bundled and was not installed."
     },
     {
       "id": "frontend-design",
