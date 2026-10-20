@@ -265,6 +265,8 @@ QUESTION_START = re.compile(r"\W*(neden|niye|nasil|nerede|nereye|hangi|kim|why|h
 QUESTION_PARTICLES = re.compile(r"\b(mi|mu|midir|mudur|miydi|muydu)\b")
 # "düzeltir misin?", "can you add tests?": requests phrased as questions.
 POLITE_REQUEST = re.compile(r"\w[aeiu]r m[iu]s[iu]n\b|\b(can|could|would|will) you\b|\blutfen\b|\bplease\b")
+# "devam etsene, neden durdun?": a go-ahead wrapped in a question is still a go-ahead.
+GO_AHEAD = re.compile(r"\bdevam\b|\w(sene|sana)\b|\b(go on|carry on|keep going|continue)\b")
 LOCK_REASONS = {
     "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
             "sentences say what state the work is in, then wait for the user's instruction.",
@@ -280,6 +282,8 @@ def classify(prompt: str) -> str | None:
     if STOP_ANYWHERE.search(text) or (
             len(text.split()) <= STOP_COMMAND_WORDS and STOP_COMMANDS.search(text)):
         return "stop"
+    if GO_AHEAD.search(text):
+        return None
     if QUESTION_START.match(text):
         return "question"
     if POLITE_REQUEST.search(text):

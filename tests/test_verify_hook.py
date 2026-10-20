@@ -414,6 +414,10 @@ class VerifyHookTests(unittest.TestCase):
                  "Show how the cache works in the README": None, "Fix the Stop hook": None,
                  "Add a stop button to the player": None, "Bekle, önce testleri yaz": None,
                  "Kardesim bak bana. Odaklan, tekrar dene.": None,
+                 "Islemlere devam etsene neden durdun pek anlayamadım ?": None,
+                 "Neden durdun, devam et": None, "Why did you stop? Keep going.": None,
+                 "Bu sene ne değişti?": "question", "Docker acmali miyim ?": "question",
+                 "Neden bu kadar dusundun atom mu parçalıyorsun ?": "question",
                  "Neden bozuldu?": "question", "How does the cache work": "question",
                  "bu aynisi mi": "question", "dur": "stop", "Bekle!": "stop", "stop it now": "stop"}
         for prompt, kind in cases.items():
