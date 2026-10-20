@@ -32,9 +32,9 @@ MUTATIONS: list[dict[str, str]] = [
         "gate": "scope (edit guard)",
         "expect_step": "an out-of-scope file is refused",
         "old": "    if not in_scope(relative, allow):\n"
-               "        deny(f\"{relative} is outside the approved scope",
+               "        return (f\"{relative} is outside the approved scope",
         "new": "    if False and not in_scope(relative, allow):\n"
-               "        deny(f\"{relative} is outside the approved scope",
+               "        return (f\"{relative} is outside the approved scope",
     },
     {
         "gate": "scope (end-of-turn git sweep)",
