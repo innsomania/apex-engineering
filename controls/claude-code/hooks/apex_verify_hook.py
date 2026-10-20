@@ -16,6 +16,7 @@ Projects without these files are untouched, except for the turn lock below, whic
 Modes (first argument; an optional second argument names the host, `claude` or `codex`):
   baseline  UserPromptSubmit: remember the working tree and record the user's message. A message
             that asks a question or says stop (including anger) locks file edits for that turn.
+            In a git project without `.apex`, the agent is asked once to offer the user setup.
   stop      Stop / SubagentStop: block if files outside the scope changed this turn, then
             run the verify command, then require a passing review; block on failure.
             For the apex-reviewer subagent it records the reviewer's verdict instead.
@@ -27,9 +28,11 @@ Modes (first argument; an optional second argument names the host, `claude` or `
 import contextlib
 import fnmatch
 import hashlib
+import importlib.util
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 from collections.abc import Sequence
@@ -368,6 +371,8 @@ def baseline(event: Event) -> None:
     if root is None:
         root_pointer(session_id).unlink(missing_ok=True)
         misplaced = nearby_controls(cwd)
+        if not misplaced:
+            offer_setup(Path(cwd))
         if misplaced:
             where = ", ".join(f"{name}/.apex" for name in misplaced)
             emit({"systemMessage": f"Apex controls are OFF for this session: they exist in {where}, "
@@ -392,6 +397,47 @@ def baseline(event: Event) -> None:
         state["prompts"] = prompts[-MAX_PROMPTS:]
         write_instructions(path, state["prompts"])
     write_state(path, state)
+
+
+PROJECT_TOOL = Path(__file__).resolve().parents[2] / "apex_project.py"
+
+
+def offer_setup(cwd: Path) -> None:
+    """Once per git project without `.apex`: ask the agent to offer setup; the user decides."""
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, capture_output=True,
+                             text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != cwd.resolve() or (cwd / ".apex").exists():
+        return
+    marker = STATE_DIR / "offered" / hashlib.sha256(str(cwd.resolve()).encode()).hexdigest()[:24]
+    if marker.exists():
+        return
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(str(cwd.resolve()), encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("apex_project", PROJECT_TOOL)
+    if spec is None or spec.loader is None:
+        return
+    tool = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(tool)
+        proposal = tool.suggest(str(cwd))
+    except (OSError, ValueError, SyntaxError):
+        return
+    command = ["python3", str(PROJECT_TOOL), "init", "--root", str(cwd)]
+    command += [arg for pattern in proposal["allow"] for arg in ("--allow", pattern)]
+    if proposal["verify"]:
+        command += ["--verify", proposal["verify"]]
+    emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": (
+        "Apex: this git project has no Apex controls (verify, scope, review). After answering the user's "
+        "message, offer them once, in one short paragraph, to enable the controls, showing this proposal "
+        f"read from the project's build files ({proposal['kind']}):\n  scope: "
+        f"{', '.join(proposal['allow']) or '(none found; ask which folders the work may change)'}\n  verify: "
+        f"{proposal['verify'] or '(none found; ask for the command that builds or tests the project)'}\n"
+        "Run the setup only after the user agrees, with their corrections:\n  "
+        + " ".join(shlex.quote(part) for part in command)
+        + "\nIf they decline, do not offer again.")}})
 
 
 def instructions_path(path: Path) -> Path:

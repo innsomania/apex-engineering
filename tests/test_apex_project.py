@@ -63,5 +63,53 @@ class ApexProjectTests(unittest.TestCase):
         self.assertFalse((self.root / ".git").exists())
 
 
+    def test_init_writes_a_manifest_pointing_at_this_checkout(self):
+        self.assertEqual(project.main(["init", "--root", str(self.root), "--allow", "row/",
+                                       "--verify", "true", "--no-review"]), 0)
+        manifest = json.loads((self.root / ".apex" / "apex.json").read_text())
+        self.assertEqual(manifest, {"source": str(project.SOURCE), "format": project.FORMAT})
+
+    def test_upgrade_adds_the_manifest_and_never_touches_the_rules(self):
+        apex = self.root / ".apex"
+        apex.mkdir()
+        rules = {"verify.json": '{"command": "true", "timeout": 60}', "scope.json": '{"allow": ["row/"]}',
+                 "review.json": "{}"}
+        for name, text in rules.items():
+            (apex / name).write_text(text)
+        self.assertEqual(project.find_projects([str(self.root.parent)])[0]["format"], 0)
+        result = project.upgrade(str(self.root))
+        self.assertEqual((result["from"], result["to"]), (0, project.FORMAT))
+        self.assertEqual({name: (apex / name).read_text() for name in rules}, rules)
+        self.assertTrue(project.find_projects([str(self.root.parent)])[0]["current"])
+
+    def test_upgrade_refuses_a_newer_format_and_a_missing_folder(self):
+        with self.assertRaises(ValueError):
+            project.upgrade(str(self.root))
+        (self.root / ".apex").mkdir()
+        (self.root / ".apex" / "apex.json").write_text(json.dumps({"format": project.FORMAT + 1}))
+        with self.assertRaises(ValueError):
+            project.upgrade(str(self.root))
+
+    def test_list_skips_dependency_folders(self):
+        (self.root / "store" / "node_modules" / "pkg" / ".apex").mkdir(parents=True)
+        (self.root / "row" / ".apex").mkdir()
+        roots = [entry["root"] for entry in project.find_projects([str(self.root)])]
+        self.assertEqual(roots, [str((self.root / "row").resolve())])
+
+    def test_suggest_reads_every_stack_and_skips_placeholders(self):
+        (self.root / "App.slnx").write_text("")
+        (self.root / "package.json").write_text(json.dumps({"scripts": {
+            "test": 'echo "Error: no test specified" && exit 1', "typecheck": "tsc", "build": "vite build"}}))
+        (self.root / "yarn.lock").write_text("")
+        (self.root / "docs").mkdir()
+        proposal = project.suggest(str(self.root))
+        self.assertEqual(proposal["kind"], "dotnet+node")
+        self.assertEqual(proposal["verify"], "dotnet build && dotnet test && yarn run typecheck && yarn run build")
+        self.assertEqual(proposal["allow"], ["docs/"])
+
+    def test_suggest_without_build_files_proposes_no_command(self):
+        self.assertEqual(project.suggest(str(self.root / "row"))["verify"], None)
+
+
 if __name__ == "__main__":
     unittest.main()

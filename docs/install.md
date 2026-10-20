@@ -60,6 +60,17 @@ python3 controls/apex_project.py init --root <project> \
   --allow 'src/' --verify 'npm test' --ignore 'node_modules/'
 ```
 
+Only the project's own rules live in `.apex`; the hooks, reviewer and guides stay
+in this checkout. `.apex/apex.json` points back here and records the rule format.
+In a git project without `.apex`, the hook asks the agent once to offer setup with
+a proposal read from the build files (`suggest`); nothing is created until you agree.
+
+```sh
+python3 controls/apex_project.py suggest --root <project>   # proposal only, writes nothing
+python3 controls/apex_project.py list ~/Desktop             # projects that use Apex, and their format
+python3 controls/apex_project.py upgrade --root <project>   # bring .apex to the current format; rules untouched
+```
+
 Ignore dependency and build output (`node_modules/`, `.next/`, `dist/`,
 `*.tsbuildinfo`) and any read-only reference folder that is its own git
 repository. The controls must live in the folder the session is opened in: the

@@ -21,10 +21,10 @@ These rules take precedence over every other Apex reference.
 
 ## Turning on Apex controls
 
-When the user asks to turn on Apex controls ("Apex kontrollerini aç"), or a hook warns that they are off:
+When the user asks to turn on Apex controls ("Apex kontrollerini aç"), a hook warns that they are off, or the hook offers setup for a git project without `.apex`:
 
 1. The controls belong in the folder this Claude Code session is opened in — the hooks look there and in its parents, never in subfolders. Never place them in a reference or source-material folder (an original site, a download, a design export); that material is read-only input and must stay outside the allowed scope.
-2. Propose the settings and wait for the user's approval: the allowed patterns (only the files the work will create or change), the verify command (the project's real build, type check, or tests — never a file-existence check), and whether to review (default yes). List what is deliberately excluded, such as the reference folder.
+2. Start from `python3 <this skill directory>/controls/apex_project.py suggest --root <session folder>`, which reads the build files and writes nothing. Propose the settings and wait for the user's approval: the allowed patterns (only the files the work will create or change), the verify command (the project's real build, type check, or tests — never a file-existence check), and whether to review (default yes). List what is deliberately excluded, such as the reference folder.
 3. After approval run `python3 <this skill directory>/controls/apex_project.py init --root <session folder> --allow ... --verify "..." --ignore ...`, ignoring dependency and build output (`node_modules/`, `.next/`, `dist/`, `*.tsbuildinfo`) and reference folders that are their own git repositories.
 4. Report the result, including the verify exit code. A verify command that already fails must be called out, not hidden.
 

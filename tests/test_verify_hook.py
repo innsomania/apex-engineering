@@ -156,6 +156,30 @@ class VerifyHookTests(unittest.TestCase):
         result = self.patch("Add File: notes.txt")
         self.assertIn("blocked for this turn", result["hookSpecificOutput"]["permissionDecisionReason"])
 
+    def test_git_project_without_apex_gets_one_setup_offer(self):
+        (self.project / ".apex" / "verify.json").unlink()
+        (self.project / ".apex").rmdir()
+        (self.project / "package.json").write_text(json.dumps({"scripts": {"test": "jest"}}))
+        (self.project / "src").mkdir()
+        self.git_init()
+        first = self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a page")
+        context = first["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("no Apex controls", context)
+        self.assertIn("verify: npm run test", context)
+        self.assertIn("--allow src/", context)
+        self.assertIn("only after the user agrees", context)
+        self.assertFalse((self.project / ".apex").exists())
+        self.assertIsNone(self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="next"))
+
+    def test_no_offer_outside_a_git_project_root(self):
+        (self.project / ".apex" / "verify.json").unlink()
+        (self.project / ".apex").rmdir()
+        self.assertIsNone(self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="hi"))
+        self.git_init()
+        (self.project / "sub").mkdir()
+        self.assertIsNone(self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="hi",
+                                    cwd=str(self.project / "sub")))
+
     def test_guard_allows_claude_code_plan_and_memory_files(self):
         self.scope("src/")
         home = Path(self.temp.name) / "home"
