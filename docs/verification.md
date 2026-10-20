@@ -108,10 +108,16 @@ direction.
 
 ## Platforms
 
-Not re-run since the restructure of 2026-10-20. Before it (2026-10-18) the
-suite and the live check passed on Python 3.11 to 3.14 locally on macOS, and the
-first CI run on GitHub Actions passed all ten jobs on Ubuntu and macOS. Treat
-that as the earlier layout's result until CI runs on this one.
+Observed 2026-10-20 on GitHub Actions, run `39369883318` on branch `slim-core`:
+all ten jobs passed — lint and types, the mutation check, and the suite with the
+live check on Ubuntu and macOS across Python 3.11 to 3.14. Locally the suite and
+checks ran on Python 3.14.7 only.
+
+The first two runs of the day failed, and both failures were real: a CI path
+still pointing at the old `Test/` folder, and a documentation link whose case no
+longer matched the file. The second passed locally because macOS resolves a
+wrongly cased path; the link test now compares each path component with the name
+on disk, so the same mistake fails on a Mac too.
 
 ## Behavioral evaluations
 
