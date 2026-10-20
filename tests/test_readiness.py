@@ -17,6 +17,16 @@ installer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(installer)
 
 
+def exact_case(path):
+    """True when every component matches the name on disk; macOS resolves a wrong case, Linux does not."""
+    current = ROOT
+    for part in path.relative_to(ROOT).parts:
+        if part not in os.listdir(current):
+            return False
+        current = current / part
+    return True
+
+
 class ReadinessTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="apex readiness ")
@@ -121,7 +131,7 @@ class ReadinessTests(unittest.TestCase):
                     continue
                 resolved = (document.parent / target.split("#")[0]).resolve()
                 self.assertTrue(resolved.is_relative_to(ROOT), str(resolved))
-                self.assertTrue(resolved.is_file(), f"{document}: {target}")
+                self.assertTrue(resolved.is_file() and exact_case(resolved), f"{document}: {target}")
                 checked += 1
         self.assertGreater(checked, 0)
 

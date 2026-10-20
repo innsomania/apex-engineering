@@ -139,4 +139,4 @@ First working version: the four working areas, per-technology coding guidance,
 the installer for Codex and Claude Code, the verification, scope, and review
 hooks, the persistent task ledger, the Codex coding bridge, and the integration
 playbooks. Recorded evaluations for this version are in
-[docs/VERIFICATION.md](docs/VERIFICATION.md).
+[docs/VERIFICATION.md](docs/verification.md).
