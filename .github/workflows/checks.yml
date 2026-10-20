@@ -66,7 +66,7 @@ jobs:
         # Tests needing an authenticated Codex CLI or a toolchain skip themselves.
         env:
           PYTHONDONTWRITEBYTECODE: "1"
-        run: python -m unittest discover -s Test -p 'test_*.py' -v
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
       - name: live controls
         # Drives the hook through a real turn on a disposable project. The
         # suites check its branches; this checks that the gates actually fire.

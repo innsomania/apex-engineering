@@ -13,7 +13,7 @@ license = "MIT"
 #  pytest runs the same unittest suite that `.apex/verify.json` runs.
 #
 #  The suite itself stays plain `unittest`: nothing here asks a test to be written differently,
-#  and `python3 -m unittest discover -s Test -p "test_*.py"` remains the gate.
+#  and `python3 -m unittest discover -s tests -p "test_*.py"` remains the gate.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
