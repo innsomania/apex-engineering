@@ -160,7 +160,7 @@
       "why": "Turns an unwanted behaviour into a hook.",
       "overlaps_ae": "none",
       "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
-      "note": "Read: four Python hooks (PreToolUse, PostToolUse, Stop, UserPromptSubmit), 10 s timeout each, local rule files only, no network. Costs a process start per event, so install after the trial in a disposable project, not before. Trial 2026-10-26 (Claude Code 2.1.310, --plugin-dir, disposable projects): a hookify block rule stopped a Bash command, Apex still refused an out-of-scope write, and an in-scope edit finished with both Stop hooks active. The model sees only 'Blocked by hook'; the rule's message reaches the user as a notice."
+      "note": "Read: four Python hooks (PreToolUse, PostToolUse, Stop, UserPromptSubmit), 10 s timeout each, local rule files only, no network. Costs a process start per event, so install after the trial in a disposable project, not before. Trial 2026-10-26 (Claude Code 2.1.310, --plugin-dir, disposable projects): a hookify block rule stopped a Bash command, Apex still refused an out-of-scope write, and an in-scope edit finished with both Stop hooks active. The model sees only 'Blocked by hook'; the rule's message reaches the user as a notice. Stays unverified until installed."
     },
     {
       "id": "plugin-dev",
