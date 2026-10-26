@@ -1,0 +1,246 @@
+{
+  "version": 1,
+  "admission": "catalog/README.md",
+  "skills": [
+    {
+      "id": "systematic-debugging",
+      "category": "engineering-practice",
+      "status": "removed",
+      "source": "https://github.com/obra/superpowers",
+      "path": "skills/systematic-debugging",
+      "pinned_ref": null,
+      "license": "MIT (per repository page)",
+      "install": "copy the one skill folder, pinned; the plugin installs the whole library",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Root-cause debugging; guides/engineering/workflow.md has only a short debugging paragraph.",
+      "overlaps_ae": "partial",
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Dropped 2026-10-20 after reading it. Its process is absolute: investigate before any fix 'even if the user says just apply it', and stop to discuss architecture after three failed fixes. That overrides the user's instruction, which Apex's fidelity rules forbid."
+    },
+    {
+      "id": "using-git-worktrees",
+      "category": "engineering-practice",
+      "status": "removed",
+      "source": "https://github.com/obra/superpowers",
+      "path": "skills/using-git-worktrees",
+      "pinned_ref": null,
+      "license": "MIT (per repository page)",
+      "install": "copy the one skill folder, pinned",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Isolated worktree per piece of work.",
+      "overlaps_ae": "none",
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Dropped 2026-10-20 after reading it. It commits a .gitignore change without asking and installs dependencies, which are unrequested changes and an unrequested commit."
+    },
+    {
+      "id": "code-review",
+      "category": "review-and-quality",
+      "status": "installed",
+      "source": "https://github.com/anthropics/claude-code",
+      "path": "plugins/code-review",
+      "pinned_ref": "a0b04d9ddcca (claude-plugins-official, as `claude plugin list` reports it)",
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "claude plugin install code-review@claude-plugins-official  (scope: user)",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Parallel agents with confidence scoring for pull requests.",
+      "overlaps_ae": "partial",
+      "removal": "claude plugin uninstall code-review@claude-plugins-official",
+      "note": "Read: one slash command that calls `gh`; no hooks, no network of its own. Installed 2026-10-20; first run in a session still pending."
+    },
+    {
+      "id": "security-guidance",
+      "category": "security",
+      "status": "removed",
+      "source": "https://github.com/anthropics/claude-code",
+      "path": "plugins/security-guidance",
+      "pinned_ref": null,
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "/plugin install security-guidance",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Pattern warnings on edits.",
+      "overlaps_ae": "none",
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Dropped 2026-10-20 after reading v2.0.14: it pip-installs the Agent SDK into a venv at every SessionStart, sends the diff to the newest Opus at the end of every turn, and runs an agentic reviewer on git commit and push. That is a second reviewer with its own cost and network use, overlapping security-audit and security-review. The README of the version we first read described only the pattern warnings."
+    },
+    {
+      "id": "security-audit",
+      "category": "security",
+      "status": "installed",
+      "source": "https://github.com/cloudflare/security-audit-skill",
+      "path": "skills/security-audit",
+      "pinned_ref": "c1c8a8c14710 (cloudflare/security-audit-skill)",
+      "license": "MIT (repository LICENSE copied beside the skill)",
+      "install": "copied from the repository at the pinned commit to ~/.claude/skills/security-audit (provenance in .apex-pin)",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Multi-phase audit with independently verified, schema-checked findings.",
+      "overlaps_ae": "partial",
+      "removal": "delete ~/.claude/skills/security-audit",
+      "note": "Read SKILL.md, the 17 companion files' names, and both validators: they only read files, with no network or process calls. Guidance mode (default) writes nothing; a full audit writes to ~/security-audit-skill/ and spawns many agents with no default budget, and it runs target code only inside an OS sandbox. Its description is broad ('security questions'), so watch for unwanted triggers."
+    },
+    {
+      "id": "threat-model",
+      "category": "security",
+      "status": "removed",
+      "source": "https://github.com/anthropics/defending-code-reference-harness",
+      "path": "skills/threat-model",
+      "pinned_ref": null,
+      "license": "unverified",
+      "install": "copy the one skill folder, pinned",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Scopes a scan by assets and boundaries before hunting.",
+      "overlaps_ae": "partial",
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Dropped 2026-10-20 after reading it. It is not a standalone skill: it reads docs/security.md and docs/prompting.md from its own repository and runs a checkpoint script there, so copying the one folder breaks it. security-audit's reconnaissance phase covers the same ground."
+    },
+    {
+      "id": "security-review",
+      "category": "security",
+      "status": "provided",
+      "source": "https://github.com/anthropics/claude-code-security-review",
+      "path": "(built into Claude Code as /security-review)",
+      "pinned_ref": null,
+      "license": "MIT (per repository page)",
+      "install": "none: built into Claude Code as /security-review",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Security review of pending changes.",
+      "overlaps_ae": "partial",
+      "removal": "not ours to remove",
+      "note": "Not hardened against prompt injection; use on trusted changes only."
+    },
+    {
+      "id": "hookify",
+      "category": "extend-and-guard",
+      "status": "planned",
+      "source": "https://github.com/anthropics/claude-code",
+      "path": "plugins/hookify",
+      "pinned_ref": null,
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "/plugin install hookify",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Turns an unwanted behaviour into a hook.",
+      "overlaps_ae": "none",
+      "removal": "delete the installed folder or `/plugin uninstall`; nothing in this repository changes",
+      "note": "Read: four Python hooks (PreToolUse, PostToolUse, Stop, UserPromptSubmit), 10 s timeout each, local rule files only, no network. Costs a process start per event, so install after the trial in a disposable project, not before."
+    },
+    {
+      "id": "plugin-dev",
+      "category": "extend-and-guard",
+      "status": "installed",
+      "source": "https://github.com/anthropics/claude-code",
+      "path": "plugins/plugin-dev",
+      "pinned_ref": "a0b04d9ddcca (claude-plugins-official, as `claude plugin list` reports it)",
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "claude plugin install plugin-dev@claude-plugins-official  (scope: user)",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Toolkit for writing plugins and hooks.",
+      "overlaps_ae": "none",
+      "removal": "claude plugin uninstall plugin-dev@claude-plugins-official",
+      "note": "Read: skills, agents and validation scripts; no hooks of its own. Installed 2026-10-20; first run in a session still pending."
+    },
+    {
+      "id": "skill-creator",
+      "category": "extend-and-guard",
+      "status": "provided",
+      "source": "https://github.com/anthropics/skills",
+      "path": "skills/skill-creator",
+      "pinned_ref": null,
+      "license": "Apache-2.0",
+      "install": "none: the account's synced skills already provide skill-creator (~/.claude/skills/synced); a second copy would duplicate it",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Writing and measuring skills; used to keep SKILL.md small.",
+      "overlaps_ae": "none",
+      "removal": "not ours to remove; it comes with the account",
+      "note": "Also available as a plugin in claude-plugins-official, which would duplicate it."
+    },
+    {
+      "id": "webapp-testing",
+      "category": "web-and-ui",
+      "status": "installed",
+      "source": "https://github.com/anthropics/skills",
+      "path": "skills/webapp-testing",
+      "pinned_ref": "dbd4588f9e10 (anthropics/skills)",
+      "license": "Apache-2.0 (LICENSE.txt read)",
+      "install": "copied from anthropics/skills at the pinned commit to ~/.claude/skills/webapp-testing (provenance in .apex-pin)",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Drive and test a running web app with Playwright.",
+      "overlaps_ae": "none",
+      "removal": "delete ~/.claude/skills/webapp-testing",
+      "note": "Read SKILL.md, with_server.py and the three examples. with_server.py runs the commands you give it through a shell and polls localhost; it contacts nothing else. Playwright is not bundled and was not installed."
+    },
+    {
+      "id": "frontend-design",
+      "category": "web-and-ui",
+      "status": "installed",
+      "source": "https://github.com/anthropics/skills",
+      "path": "skills/frontend-design",
+      "pinned_ref": "a0b04d9ddcca (claude-plugins-official, as `claude plugin list` reports it)",
+      "license": "Apache-2.0 (LICENSE read)",
+      "install": "claude plugin install frontend-design@claude-plugins-official  (scope: user)",
+      "hosts": {
+        "claude-code": "unverified",
+        "codex": "unverified",
+        "opencode": "unverified"
+      },
+      "reviewed": "2026-10-20",
+      "why": "Distinctive interface design for React and React Native work.",
+      "overlaps_ae": "none",
+      "removal": "claude plugin uninstall frontend-design@claude-plugins-official",
+      "note": "Read: one SKILL.md. Installed 2026-10-20; first run in a session still pending."
+    }
+  ]
+}

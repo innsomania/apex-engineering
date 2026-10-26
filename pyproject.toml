@@ -10,19 +10,16 @@ description = "A software engineering skill for Codex and Claude Code, with host
 requires-python = ">=3.11"
 license = "MIT"
 
-#  pytest runs the same unittest suite that `.apex/verify.json` runs, so that the test-first
-#  guard has test results to judge against. See Engineering/Integrations/TEST_FIRST_GUARD.md.
+#  pytest runs the same unittest suite that `.apex/verify.json` runs.
 #
 #  The suite itself stays plain `unittest`: nothing here asks a test to be written differently,
-#  and `python3 -m unittest discover -s Test -p "test_*.py"` remains the gate.
+#  and `python3 -m unittest discover -s tests -p "test_*.py"` remains the gate.
 
 [tool.pytest.ini_options]
-testpaths = ["Test"]
+testpaths = ["tests"]
 python_files = ["test_*.py"]
 
 [tool.ruff]
-# Claude/skills holds vendored third-party skills; they are not ours to reformat.
-extend-exclude = ["Claude/skills"]
 line-length = 120
 target-version = "py311"
 
@@ -65,7 +62,7 @@ ignore = [
 # Tests assert on internals, build fixtures, and run the tools under test.
 # Suites and evaluation runners assert on internals, build fixtures, read the
 # tools' exit codes directly, and import lazily to keep optional deps optional.
-"Test/*" = [
+"tests/*" = [
     "S101", "S105", "S108", "SLF001",
     "PLW1510", "PLC0415", "RUF012",
     "E701", "E702", "E501",
@@ -74,7 +71,7 @@ ignore = [
 [tool.mypy]
 python_version = "3.11"
 strict = true
-# Claude/skills is vendored. Test/ holds the suites and evaluation runners: they
+# tests/ holds the suites and evaluation runners: they
 # are checked by running them, and annotating assertions on internals would add
 # noise without catching anything.
-exclude = "^(Claude/skills/|Test/)"
+exclude = "^tests/"

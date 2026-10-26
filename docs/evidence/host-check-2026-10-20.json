@@ -1,0 +1,47 @@
+{
+  "checks": 8,
+  "passed": 8,
+  "python": "3.14.7",
+  "observations": [
+    {
+      "step": "the file outside the scope was not created",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the file inside the scope was created",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the hook's refusal reached the agent",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the failing verify blocked the stop",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the settings change blocked the stop",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the hook asked for the apex-reviewer",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the reviewer subagent ran",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "step": "the turn ended with the change in place",
+      "passed": true,
+      "detail": ""
+    }
+  ]
+}

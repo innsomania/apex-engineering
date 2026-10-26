@@ -1,0 +1,23 @@
+{
+  "baseline": "failed as expected",
+  "usage": {
+    "input_tokens": 83467,
+    "cached_input_tokens": 75392,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 625,
+    "reasoning_output_tokens": 10
+  },
+  "uncached_input_tokens": 8075,
+  "execution_mode": "run_apex.py compact Codex session; explicit Apex entry point",
+  "cli_version": "codex-cli 0.164.0",
+  "command_count": 5,
+  "failed_commands": 1,
+  "fixture_scope": "passed; instructions preserved and no unexpected top-level files",
+  "measurement_limit": "Single run; cumulative usage includes cached context and host instructions. Not a billing or causal benchmark.",
+  "independent_access_cases": 32,
+  "independent_result": "passed",
+  "agent_regression_tests": "added and passed",
+  "fixed_source_sha256": "3972bdd509ea6083ca374c955e8d3cdf9c4104fd29de95b12458691d76f57bba",
+  "scope": "one C++ tenant-authorization fixture; not a benchmark of every supported stack",
+  "module_use": "inspect codex-events.jsonl command events for reference reads"
+}

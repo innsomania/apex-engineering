@@ -1,9 +1,0 @@
-test_audit_links_task_hashes_results_and_redacts_failures (test_mcp_doctor.McpDoctorTests.test_audit_links_task_hashes_results_and_redacts_failures) ... ok
-test_capability_routing_is_allowlisted_to_six_servers (test_mcp_doctor.McpDoctorTests.test_capability_routing_is_allowlisted_to_six_servers) ... ok
-test_probe_reports_disabled_unconfigured_unavailable_and_degraded (test_mcp_doctor.McpDoctorTests.test_probe_reports_disabled_unconfigured_unavailable_and_degraded) ... ok
-test_sdk_probe_lists_tools_and_never_invokes_them (test_mcp_doctor.McpDoctorTests.test_sdk_probe_lists_tools_and_never_invokes_them) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 0.004s
-
-OK

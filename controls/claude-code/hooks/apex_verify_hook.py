@@ -1,0 +1,739 @@
+#!/usr/bin/env python3
+"""Claude Code and Codex hooks that keep an agent inside the user's instructions.
+
+Opt-in per project, both files at the project root and both changed only by the user:
+  .apex/verify.json  {"command": "npm test", "timeout": 600}
+                     A turn that changed files cannot end until the command passes.
+  .apex/scope.json   {"allow": ["src/", "tests/*.py"]}
+                     Files the approved plan may change. A pattern ending in "/" covers that
+                     folder; other patterns are fnmatch globs where "*" also crosses folders.
+  .apex/review.json  {}
+                     A turn that changed files cannot end until the apex-reviewer subagent has
+                     compared exactly this working tree with the user's verbatim messages and
+                     reported APEX-REVIEW: PASS.
+Projects without these files are untouched, except for the turn lock below, which applies everywhere.
+
+Modes (first argument; an optional second argument names the host, `claude` or `codex`):
+  baseline  UserPromptSubmit: remember the working tree and record the user's message. A message
+            that asks a question or says stop (including abuse that is not a question) locks
+            file edits for that turn.
+            In a git project without `.apex`, the agent is asked once to offer the user setup.
+  stop      Stop / SubagentStop: block if files outside the scope changed this turn, then
+            run the verify command, then require a passing review; block on failure.
+            For the apex-reviewer subagent it records the reviewer's verdict instead.
+  guard     PreToolUse (Write|Edit, or Codex apply_patch): refuse edits during a locked turn, to
+            `.apex/` configs, and outside the scope; a patch is refused if any file in it is.
+  unlock    PostToolUse (ExitPlanMode): the user approved a plan; lift this turn's lock.
+"""
+
+import contextlib
+import fnmatch
+import hashlib
+import importlib.util
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+# Hook events and the state file are free-form JSON from the host.
+Event = dict[str, Any]
+State = dict[str, Any]
+
+CONFIG = Path(".apex") / "verify.json"
+SCOPE = Path(".apex") / "scope.json"
+REVIEW = Path(".apex") / "review.json"
+REVIEWER = "apex-reviewer"
+MAX_PROMPTS = 30
+MAX_PROMPT_CHARS = 16000
+MAX_ATTEMPTS = 3
+OUTPUT_TAIL = 4000
+STATE_DIR = Path(os.environ.get("APEX_HOOK_STATE_DIR")
+                 or Path.home() / ".claude" / "apex-hooks" / "state")
+GATED_SUBAGENTS = {"apex-coding"}
+# How each host's main agent starts the reviewer; Codex starts custom agents by name.
+SPAWN = {"claude": f"run the {REVIEWER} subagent (Agent tool, subagent_type \"{REVIEWER}\")",
+         "codex": f"spawn the {REVIEWER} custom agent (agent_type \"{REVIEWER}\")"}
+RUN = {"host": "claude"}  # set once by main() from the command line
+PATCH_FILE = re.compile(r"^\*\*\* (?:Add File|Update File|Delete File|Move to): (.+?)\s*$", re.MULTILINE)
+
+
+def find_root(cwd: str | Path) -> Path | None:
+    path = Path(cwd).resolve()
+    for candidate in (path, *path.parents):
+        if any((candidate / name).is_file() for name in (CONFIG, SCOPE, REVIEW)):
+            return candidate
+    return None
+
+
+def load_scope(root: Path) -> list[str] | None:
+    """Allowed patterns, or None when the project has no scope file."""
+    if not (root / SCOPE).is_file():
+        return None
+    try:
+        allow = json.loads((root / SCOPE).read_text(encoding="utf-8")).get("allow")
+    except (OSError, ValueError, AttributeError) as error:
+        raise ValueError(f"{SCOPE} is unreadable: {error}") from error
+    if not isinstance(allow, list) or not all(isinstance(item, str) and item for item in allow):
+        raise ValueError(f'{SCOPE} needs "allow": a list of path patterns')
+    return allow
+
+
+def in_scope(relative: str, allow: Sequence[str]) -> bool:
+    for pattern in allow:
+        if pattern.endswith("/"):
+            if relative == pattern[:-1] or relative.startswith(pattern):
+                return True
+        elif fnmatch.fnmatchcase(relative, pattern):
+            return True
+    return False
+
+
+def load_config(root: Path) -> tuple[str, float]:
+    try:
+        config = json.loads((root / CONFIG).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise ValueError(f"{CONFIG} is unreadable: {error}") from error
+    command = config.get("command") if isinstance(config, dict) else None
+    if not isinstance(command, str) or not command.strip():
+        raise ValueError(f'{CONFIG} needs a non-empty "command"')
+    timeout = config.get("timeout", 600)
+    if not isinstance(timeout, (int, float)) or timeout <= 0:
+        raise ValueError(f'{CONFIG} "timeout" must be a positive number of seconds')
+    return command, timeout
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(["git", *args], cwd=root, capture_output=True, timeout=30, check=False)
+
+
+def fingerprint(root: Path) -> str | None:
+    """Hash of HEAD, tracked changes and untracked files; None outside a git work tree."""
+    if _git(root, "rev-parse", "--is-inside-work-tree").returncode != 0:
+        return None
+    digest = hashlib.sha256()
+    head = _git(root, "rev-parse", "--verify", "-q", "HEAD")
+    digest.update(head.stdout)
+    digest.update(_git(root, "diff", "--binary", *(["HEAD"] if head.returncode == 0 else [])).stdout)
+    digest.update(_git(root, "diff", "--binary", "--cached").stdout)
+    untracked = _git(root, "ls-files", "--others", "--exclude-standard", "-z").stdout
+    for name in filter(None, untracked.split(b"\0")):
+        path = root / os.fsdecode(name)
+        digest.update(name)
+        if path.is_file() and not path.is_symlink():
+            with contextlib.suppress(OSError):
+                digest.update(hashlib.sha256(path.read_bytes()).digest())
+    return digest.hexdigest()
+
+
+def snapshot(root: Path) -> State | None:
+    """HEAD plus a content hash of every dirty or untracked file; None outside git."""
+    if _git(root, "rev-parse", "--is-inside-work-tree").returncode != 0:
+        return None
+    head = _git(root, "rev-parse", "--verify", "-q", "HEAD").stdout.decode().strip()
+    entries = _git(root, "status", "--porcelain=v1", "-z", "--untracked-files=all").stdout.split(b"\0")
+    files: dict[str, str] = {}
+    index = 0
+    while index < len(entries):
+        entry = entries[index]
+        index += 1
+        if len(entry) < 4:
+            continue
+        name = os.fsdecode(entry[3:])
+        if entry[:1] in (b"R", b"C"):
+            original = os.fsdecode(entries[index]) if index < len(entries) else ""
+            index += 1  # the original path of a rename or copy
+            if original and entry[:1] == b"R":
+                files[original] = "<absent>"  # a rename deletes the old path
+        path = root / name
+        try:
+            files[name] = hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else "<absent>"
+        except OSError:
+            files[name] = "<unreadable>"
+    return {"head": head, "files": files}
+
+
+def turn_changes(root: Path, before: State | None) -> list[str]:
+    """Paths whose content changed since the turn's baseline snapshot."""
+    after = snapshot(root)
+    if after is None:
+        return []
+    before = before or {"head": None, "files": {}}
+    changed = {name for name in set(before["files"]) | set(after["files"])
+               if before["files"].get(name) != after["files"].get(name)}
+    if before.get("head") and before["head"] != after["head"]:
+        committed = _git(root, "diff", "--name-only", "--no-renames", "-z",
+                         before["head"], after["head"] or "HEAD").stdout
+        changed |= {os.fsdecode(name) for name in committed.split(b"\0") if name}
+    return sorted(changed)
+
+
+def control_digest(root: Path) -> dict[str, str]:
+    """Content hash of each Apex settings file; "<absent>" when it does not exist."""
+    digest: dict[str, str] = {}
+    for name in (CONFIG, SCOPE, REVIEW):
+        try:
+            digest[name.as_posix()] = hashlib.sha256((root / name).read_bytes()).hexdigest()
+        except OSError:
+            digest[name.as_posix()] = "<absent>"
+    return digest
+
+
+def tampered_controls(root: Path, state: State) -> list[str]:
+    """Settings files that differ from the turn's baseline; none when there was no baseline."""
+    before = state.get("controls")
+    if not isinstance(before, dict):
+        return []
+    now = control_digest(root)
+    return sorted(name for name in now if before.get(name, "<absent>") != now[name])
+
+
+def root_pointer(session_id: str) -> Path:
+    return STATE_DIR / f"{hashlib.sha256(session_id.encode()).hexdigest()[:24]}.root"
+
+
+def remembered_root(session_id: str) -> Path | None:
+    """The project root this session had at its last prompt, if it still exists."""
+    try:
+        root = Path(root_pointer(session_id).read_text(encoding="utf-8").strip())
+    except OSError:
+        return None
+    return root if root.is_dir() else None
+
+
+def state_path(session_id: str, root: Path) -> Path:
+    key = hashlib.sha256(f"{session_id}\0{root}".encode()).hexdigest()[:24]
+    return STATE_DIR / f"{key}.json"
+
+
+def read_state(path: Path) -> State:
+    try:
+        state: object = json.loads(path.read_text(encoding="utf-8"))
+        return state if isinstance(state, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def write_state(path: Path, state: State) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(state), encoding="utf-8")
+    os.replace(temporary, path)
+
+
+OUTPUT: dict[str, Any] = {}
+
+
+def emit(payload: dict[str, Any]) -> None:
+    """Merge into the single JSON object main() prints; Claude Code reads one object."""
+    for key, value in payload.items():
+        if key == "systemMessage" and key in OUTPUT:
+            OUTPUT[key] += "\n" + value
+        elif key == "hookSpecificOutput" and "additionalContext" in OUTPUT.get(key, {}):
+            context = OUTPUT[key]["additionalContext"]
+            OUTPUT[key] = {**OUTPUT[key], **value}
+            if "additionalContext" in value:
+                OUTPUT[key]["additionalContext"] = context + "\n\n" + value["additionalContext"]
+        else:
+            OUTPUT[key] = value
+
+
+def nearby_controls(cwd: str | Path, depth: int = 2, limit: int = 5) -> list[str]:
+    """`.apex` folders below cwd; they do nothing for a session opened in cwd."""
+    found: list[str] = []
+    frontier = [Path(cwd)]
+    for _ in range(depth):
+        next_frontier: list[Path] = []
+        for folder in frontier:
+            try:
+                children = sorted(child for child in folder.iterdir() if child.is_dir())
+            except OSError:
+                continue
+            for child in children:
+                if child.name.startswith(".") or child.name == "node_modules":
+                    continue
+                if (child / ".apex").is_dir():
+                    found.append(child.relative_to(cwd).as_posix())
+                next_frontier.append(child)
+        frontier = next_frontier
+    return found[:limit]
+
+
+FOLD = str.maketrans("ıİşŞğĞüÜöÖçÇâÂîÎ", "iissgguuoocCaAiI")
+# A stop command counts only as (nearly) the whole message: "Fix the Stop hook" is work.
+STOP_COMMANDS = re.compile(r"\b(dur|durdur|stop|yeter|bekle)\b")
+STOP_COMMAND_WORDS = 3
+STOP_ANYWHERE = re.compile(r"\b(ne yapiyorsun|ne yapiyosun|kafayi yi\w*)\b")
+# Abuse stops the agent, but abuse inside a question ("neden boyle, orospu cocugu?") is a complaint
+# demanding the fix, so it must not lock edits.
+ABUSE = re.compile(
+    r"\b(salak|aptal|gerizekali|orospu|siktir|sikim|amk|aq|allah belani|allahin belasi|"
+    r"kafayi mi yedin)\b")
+QUESTION_START = re.compile(r"\W*(neden|niye|nasil|nerede|nereye|hangi|kim|why|how|what|where|which)\b")
+# "neden calismiyor?" reports something broken: the user wants it fixed, not just explained.
+FAILURE_REPORT = re.compile(
+    r"\b(calismiyor|calismadi|bozuk\w*|bozul\w*|hata\w*|olmuyor|acilmiyor|yuklenmiyor|gelmiyor|"
+    r"broken|error|errors|fail|fails|failed|failing|crash\w*|not working|doesn.?t work)\b")
+QUESTION_ANYWHERE = re.compile(r"\b(neden|niye|nasil|why|how)\b")
+QUESTION_PARTICLES = re.compile(r"\b(mi|mu|midir|mudur|miydi|muydu)\b")
+# "düzeltir misin?", "can you add tests?": requests phrased as questions.
+POLITE_REQUEST = re.compile(r"\w[aeiu]r m[iu]s[iu]n\b|\b(can|could|would|will) you\b|\blutfen\b|\bplease\b")
+# "devam etsene, neden durdun?": a go-ahead wrapped in a question is still a go-ahead.
+# The -sene/-sana urging form is matched only on known verb stems, so "kasana" or "bu sene" stay plain words.
+GO_AHEAD = re.compile(
+    r"\bdevam\b|\b(go on|carry on|keep going|continue)\b|"
+    r"\b(et|yap|bak|gel|git|yaz|ekle|sil|bitir|baslat|basla|calistir|duzelt|gonder|pushla|kur|bas)"
+    r"s[ae]n[ae]\b")
+LOCK_REASONS = {
+    "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
+            "sentences say what state the work is in, then wait for the user's instruction.",
+    "question": "The user asked a question. Answer it directly in your first sentence; read files only "
+                "if the answer needs it. Do not start or continue any work; if work is needed, say "
+                "what and wait for the user's go-ahead.",
+}
+
+
+def classify(prompt: str) -> str | None:
+    """'stop', 'question' or None for a user message; a stop signal outranks a question."""
+    text = prompt.translate(FOLD).lower()
+    if STOP_ANYWHERE.search(text) or (
+            len(text.split()) <= STOP_COMMAND_WORDS and STOP_COMMANDS.search(text)):
+        return "stop"
+    asks = bool(QUESTION_START.match(text) or text.rstrip().endswith("?")
+                or QUESTION_PARTICLES.search(text))
+    if ABUSE.search(text):
+        return None if asks or QUESTION_ANYWHERE.search(text) else "stop"
+    if GO_AHEAD.search(text) or (asks and FAILURE_REPORT.search(text)):
+        return None
+    if QUESTION_START.match(text):
+        return "question"
+    if POLITE_REQUEST.search(text):
+        return None
+    if asks:
+        return "question"
+    return None
+
+
+def lock_path(session_id: str) -> Path:
+    return STATE_DIR / f"{hashlib.sha256(session_id.encode()).hexdigest()[:24]}.lock"
+
+
+def set_turn_lock(event: Event) -> None:
+    """Lock file edits for this turn when the user asked a question or said stop."""
+    prompt = event.get("prompt")
+    kind = classify(prompt) if isinstance(prompt, str) else None
+    path = lock_path(event.get("session_id", ""))
+    if kind is None:
+        path.unlink(missing_ok=True)
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    cwd = event.get("cwd") or os.getcwd()
+    try:
+        tree = fingerprint(Path(cwd))
+    except (OSError, subprocess.SubprocessError):
+        tree = None
+    path.write_text(json.dumps({"kind": kind, "cwd": cwd, "tree": tree}), encoding="utf-8")
+    emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
+                                 "additionalContext": f"Apex: {LOCK_REASONS[kind]} File edits are "
+                                                      "blocked for this turn."}})
+
+
+def read_lock(session_id: str) -> State | None:
+    """The lock record {"kind", "cwd", "tree"} for this turn, or None."""
+    try:
+        lock: object = json.loads(lock_path(session_id).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return lock if isinstance(lock, dict) and lock.get("kind") in LOCK_REASONS else None
+
+
+def turn_lock(session_id: str) -> str | None:
+    lock = read_lock(session_id)
+    kind: str | None = lock["kind"] if lock else None
+    return kind
+
+
+def unlock(event: Event) -> None:
+    """PostToolUse ExitPlanMode: the user approved a plan, so this turn may edit files."""
+    lock_path(event.get("session_id", "")).unlink(missing_ok=True)
+
+
+def report_locked_changes(event: Event) -> None:
+    """Edits are refused during a locked turn, but shell commands can still change files."""
+    lock = read_lock(event.get("session_id", ""))
+    if not lock or lock.get("tree") is None:
+        return
+    try:
+        current = fingerprint(Path(lock.get("cwd") or os.getcwd()))
+    except (OSError, subprocess.SubprocessError):
+        return
+    if current != lock["tree"]:
+        emit({"systemMessage": "Apex: files changed during a turn in which edits were locked "
+                               f"(the user's message was a {lock['kind']}). Please review them."})
+
+
+def baseline(event: Event) -> None:
+    set_turn_lock(event)
+    cwd = event.get("cwd") or os.getcwd()
+    root = find_root(cwd)
+    session_id = event.get("session_id", "")
+    if root is None:
+        root_pointer(session_id).unlink(missing_ok=True)
+        misplaced = nearby_controls(cwd)
+        if not misplaced:
+            offer_setup(Path(cwd))
+        if misplaced:
+            where = ", ".join(f"{name}/.apex" for name in misplaced)
+            emit({"systemMessage": f"Apex controls are OFF for this session: they exist in {where}, "
+                                   f"but the session is opened in {cwd}. Nothing is verified, scoped or reviewed.",
+                  "hookSpecificOutput": {
+                      "hookEventName": "UserPromptSubmit",
+                      "additionalContext": (
+                          f"Apex warning: verification, scope and review are NOT active. Apex settings were "
+                          f"found in {where}, but they only apply when the session's folder ({cwd}) or a parent "
+                          "contains .apex. Tell the user before doing any work, and set the controls up at the "
+                          "session folder as the apex-engineering skill describes.")}})
+        return
+    root_pointer(session_id).parent.mkdir(parents=True, exist_ok=True)
+    root_pointer(session_id).write_text(str(root), encoding="utf-8")
+    path = state_path(session_id, root)
+    state = read_state(path)
+    state.update({"baseline": fingerprint(root), "snapshot": snapshot(root), "controls": control_digest(root),
+                  "failures": 0, "review_requests": 0})
+    prompt = event.get("prompt")
+    if isinstance(prompt, str) and prompt.strip():
+        prompts = [*state.get("prompts", []), prompt[:MAX_PROMPT_CHARS]]
+        state["prompts"] = prompts[-MAX_PROMPTS:]
+        write_instructions(path, state["prompts"])
+    write_state(path, state)
+
+
+PROJECT_TOOL = Path(__file__).resolve().parents[2] / "apex_project.py"
+
+
+def offer_setup(cwd: Path) -> None:
+    """Once per git project without `.apex`: ask the agent to offer setup; the user decides."""
+    try:
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=cwd, capture_output=True,
+                             text=True, timeout=10, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != cwd.resolve() or (cwd / ".apex").exists():
+        return
+    marker = STATE_DIR / "offered" / hashlib.sha256(str(cwd.resolve()).encode()).hexdigest()[:24]
+    if marker.exists():
+        return
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_text(str(cwd.resolve()), encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("apex_project", PROJECT_TOOL)
+    if spec is None or spec.loader is None:
+        return
+    tool = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(tool)
+        proposal = tool.suggest(str(cwd))
+    except (OSError, ValueError, SyntaxError):
+        return
+    command = ["python3", str(PROJECT_TOOL), "init", "--root", str(cwd)]
+    command += [arg for pattern in proposal["allow"] for arg in ("--allow", pattern)]
+    if proposal["verify"]:
+        command += ["--verify", proposal["verify"]]
+    emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": (
+        "Apex: this git project has no Apex controls (verify, scope, review). After answering the user's "
+        "message, offer them once, in one short paragraph, to enable the controls, showing this proposal "
+        f"read from the project's build files ({proposal['kind']}):\n  scope: "
+        f"{', '.join(proposal['allow']) or '(none found; ask which folders the work may change)'}\n  verify: "
+        f"{proposal['verify'] or '(none found; ask for the command that builds or tests the project)'}\n"
+        "Run the setup only after the user agrees, with their corrections:\n  "
+        + " ".join(shlex.quote(part) for part in command)
+        + "\nIf they decline, do not offer again.")}})
+
+
+def instructions_path(path: Path) -> Path:
+    return path.with_suffix(".instructions.md")
+
+
+def write_instructions(path: Path, prompts: Sequence[str]) -> None:
+    lines = ["# User messages (verbatim, oldest first)", "",
+             "Recorded by the Apex hook from UserPromptSubmit. These are the only instructions.", ""]
+    for number, prompt in enumerate(prompts, 1):
+        lines += [f"## Message {number}", "", prompt, ""]
+    target = instructions_path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix(".tmp")
+    temporary.write_text("\n".join(lines), encoding="utf-8")
+    os.replace(temporary, target)
+
+
+def reviewer_verdict(transcript: str) -> tuple[str | None, str]:
+    """Last APEX-REVIEW verdict and report in the reviewer's own transcript, or (None, text)."""
+    reports: list[str] = []
+    try:
+        with open(transcript, encoding="utf-8") as stream:
+            for line in stream:
+                try:
+                    message = json.loads(line).get("message") or {}
+                except ValueError:
+                    continue
+                if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
+                    continue
+                for item in message["content"]:
+                    if not isinstance(item, dict):
+                        continue
+                    if item.get("type") == "text":
+                        reports.append(item.get("text") or "")
+                    elif item.get("type") == "tool_use" and isinstance(item.get("input"), dict):
+                        reports.append(str(item["input"].get("message") or ""))
+    except (OSError, TypeError):
+        return None, "The reviewer transcript could not be read."
+    return last_verdict(reports)
+
+
+def last_verdict(reports: Sequence[str]) -> tuple[str | None, str]:
+    """The last APEX-REVIEW verdict among the reviewer's messages and the message that held it."""
+    for report in reversed(reports):
+        verdicts = re.findall(r"^\s*APEX-REVIEW:\s*(PASS|FAIL)\s*$", report, re.MULTILINE)
+        if verdicts:
+            return verdicts[-1], report
+    return None, "The reviewer gave no APEX-REVIEW verdict."
+
+
+def record_review(event: Event) -> None:
+    root = find_root(event.get("cwd") or os.getcwd())
+    if root is None or not (root / REVIEW).is_file():
+        return
+    path = state_path(event.get("session_id", ""), root)
+    state = read_state(path)
+    verdict, report = reviewer_verdict(event.get("agent_transcript_path") or "")
+    final = event.get("last_assistant_message")
+    if verdict is None and isinstance(final, str):
+        # The transcript can be missing (a session that persists nothing); the host also hands over the last message.
+        verdict, report = last_verdict([final])
+    current = fingerprint(root)
+    if verdict == "PASS":
+        state.update({"reviewed": current, "review_failed": None, "review_findings": ""})
+    else:
+        state.update({"review_failed": current, "review_findings": report[-OUTPUT_TAIL:]})
+    write_state(path, state)
+
+
+def require_review(root: Path, path: Path, state: State, current: str | None) -> bool:
+    """Block until the reviewer passed this exact tree; True when the turn may end."""
+    if not (root / REVIEW).is_file() or (current is not None and state.get("reviewed") == current):
+        return True
+    if current is not None and state.get("review_failed") == current:
+        fail(path, state, "The independent reviewer found deviations from the user's instructions:\n\n"
+             + state.get("review_findings", "") + "\n\nUndo or correct each deviation so the work matches "
+             "the user's words exactly (or stop and ask the user), then the review runs again.")
+        return False
+    requests = int(state.get("review_requests", 0)) + 1
+    state["review_requests"] = requests
+    write_state(path, state)
+    if requests > MAX_ATTEMPTS:
+        emit({"systemMessage": "Apex: the required instruction review was not run. "
+                               "Treat this work as unreviewed."})
+        return False
+    changed = turn_changes(root, state.get("snapshot")) if snapshot(root) is not None else []
+    emit({"decision": "block",
+          "reason": f"Before this turn may end, {SPAWN[RUN['host']]} with exactly this delegation message:\n\n"
+                    f"Project: {root}\nInstructions file: {instructions_path(path)}\n"
+                    "Files changed in this turn:\n"
+                    + ("\n".join(f"- {name}" for name in changed) or "- (see git status)")
+                    + "\n\nDo not describe or summarize the user's instructions to it; it reads them "
+                      "from the instructions file. Then act on its verdict."})
+    return False
+
+
+def fail(path: Path, state: State, message: str) -> None:
+    """Block the stop with ``message`` until MAX_ATTEMPTS, then release with a user notice."""
+    failures = int(state.get("failures", 0)) + 1
+    state["failures"] = failures
+    write_state(path, state)
+    if failures >= MAX_ATTEMPTS:
+        emit({"systemMessage": f"Apex: still failing after {failures} attempts — the work is NOT done. "
+                               f"Claude was allowed to stop so you can decide.\n{message[:OUTPUT_TAIL]}"})
+    else:
+        emit({"decision": "block",
+              "reason": f"Apex check failed (attempt {failures}/{MAX_ATTEMPTS}). The task is not done. "
+                        "Do not apologize and do not claim completion. If it cannot be resolved "
+                        f"within the user's instructions, say exactly what blocks it.\n\n{message}"})
+
+
+def stop(event: Event) -> None:
+    if event.get("hook_event_name") == "SubagentStop":
+        if event.get("agent_type") == REVIEWER:
+            record_review(event)
+            return
+        if event.get("agent_type") not in GATED_SUBAGENTS:
+            return
+    else:
+        report_locked_changes(event)
+    session_id = event.get("session_id", "")
+    root = find_root(event.get("cwd") or os.getcwd()) or remembered_root(session_id)
+    if root is None:
+        return
+    path = state_path(session_id, root)
+    state = read_state(path)
+    tampered = tampered_controls(root, state)
+    if tampered:
+        fail(path, state, "Apex settings changed during this turn:\n" + "\n".join(f"- {name}" for name in tampered)
+             + "\nOnly the user changes them. Restore them (for example `git checkout -- .apex`), or stop and "
+               "ask the user to make the change.")
+        return
+    current = fingerprint(root)
+    if current is not None and current in (state.get("baseline"), state.get("passed")):
+        return  # nothing changed this turn, or this exact tree already passed
+    if current is not None and state.get("verified") == current:
+        finish(root, path, state, current, event)  # checks passed in a subagent; review still due
+        return
+    notices: list[str] = []
+    try:
+        allow = load_scope(root)
+    except ValueError as error:
+        allow = None
+        notices.append(str(error))
+    if allow is not None:
+        changed = turn_changes(root, state.get("snapshot"))
+        outside = [name for name in changed if not name.startswith(".apex/") and not in_scope(name, allow)]
+        if outside:
+            if notices:
+                emit({"systemMessage": "\n".join(notices)})
+            fail(path, state, "These files changed outside the approved scope (.apex/scope.json):\n"
+                 + "\n".join(f"- {name}" for name in outside)
+                 + "\nRestore them (for example `git checkout -- <file>`, or delete files you created), "
+                   "or stop and ask the user to approve them. Do not edit .apex/scope.json yourself.")
+            return
+    if not (root / CONFIG).is_file():
+        if notices:
+            emit({"systemMessage": "\n".join(notices)})
+        finish(root, path, state, current, event)
+        return
+    try:
+        command, timeout = load_config(root)
+    except ValueError as error:
+        emit({"systemMessage": "\n".join([*notices, f"Apex verify: {error}"])})
+        return
+    try:
+        # The verify command is the project's own shell command, supplied by the user.
+        result = subprocess.run(command, shell=True, cwd=root, capture_output=True,  # noqa: S602
+                                timeout=timeout, stdin=subprocess.DEVNULL, check=False)
+        code: int | str = result.returncode
+        output = (result.stdout + result.stderr).decode("utf-8", errors="replace")
+    except subprocess.TimeoutExpired as error:
+        code = "timeout"
+        output = ((error.stdout or b"") + (error.stderr or b"")).decode("utf-8", errors="replace")
+    if notices:
+        emit({"systemMessage": "\n".join(notices)})
+    if code == 0:
+        finish(root, path, state, current, event)
+        return
+    fail(path, state, f"Verification `{command}` exited with {code}. Fix the cause and finish again; "
+                      f"do not weaken the checks or edit {CONFIG}.\n\nOutput (last {OUTPUT_TAIL} chars):\n"
+                      + output[-OUTPUT_TAIL:])
+
+
+def finish(root: Path, path: Path, state: State, current: str | None, event: Event) -> None:
+    """Checks passed; the main turn still needs a review when the project asks for one."""
+    state["verified"] = current
+    if event.get("hook_event_name") == "SubagentStop":
+        state["failures"] = 0
+        write_state(path, state)
+        return
+    if not require_review(root, path, state, current):
+        return
+    state.update({"passed": current, "failures": 0})
+    write_state(path, state)
+
+
+def deny(reason: str) -> None:
+    emit({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                 "permissionDecisionReason": reason}})
+
+
+def claude_own_file(path: Path) -> bool:
+    """Claude Code's plan and memory files, which live outside every project."""
+    claude = (Path.home() / ".claude").resolve()
+    try:
+        parts = path.relative_to(claude).parts
+    except ValueError:
+        return False
+    return (len(parts) >= 2 and parts[0] == "plans") or (
+        len(parts) >= 4 and parts[0] == "projects" and parts[2] == "memory")
+
+
+def edit_targets(tool_input: dict[str, Any]) -> list[str]:
+    """The files an edit tool call writes: one path, or every file a Codex patch touches."""
+    target = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if isinstance(target, str):
+        return [target]
+    patch = tool_input.get("command")
+    return PATCH_FILE.findall(patch) if isinstance(patch, str) else []
+
+
+def guard(event: Event) -> None:
+    tool_input = event.get("tool_input")
+    targets = edit_targets(tool_input) if isinstance(tool_input, dict) else []
+    cwd = Path(event.get("cwd") or os.getcwd())
+    for target in targets:
+        reason = refusal(event, cwd, target)
+        if reason:
+            deny(reason)
+            return
+
+
+def refusal(event: Event, cwd: Path, target: str) -> str | None:
+    """Why the edit of one file is refused, or None when it may go ahead."""
+    path = Path(target) if Path(target).is_absolute() else cwd / target
+    path = path.resolve()
+    lock = turn_lock(event.get("session_id", ""))
+    if lock and not claude_own_file(path):
+        return f"File edits are blocked for this turn. {LOCK_REASONS[lock]}"
+    if path.parts[-2:] in (CONFIG.parts, SCOPE.parts, REVIEW.parts):
+        return f"{path.parts[-2]}/{path.name} holds the user's Apex rules; only the user changes it."
+    root = find_root(cwd)
+    if root is None:
+        return None
+    try:
+        allow = load_scope(root)
+    except ValueError as error:
+        return f"{error}. Ask the user to fix it before editing files."
+    if allow is None:
+        return None
+    try:
+        relative = path.relative_to(root).as_posix()
+    except ValueError:
+        if claude_own_file(path):
+            return None
+        return f"{path} is outside the project; the approved scope covers only {root}. Ask the user."
+    if not in_scope(relative, allow):
+        return (f"{relative} is outside the approved scope (.apex/scope.json allows: {', '.join(allow)}). "
+                "Do not work around this; ask the user whether this file may be changed.")
+    return None
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    mode = argv[0] if argv else ""
+    RUN["host"] = argv[1] if len(argv) > 1 else "claude"
+    try:
+        event = json.load(sys.stdin)
+    except ValueError:
+        event = {}
+    if not isinstance(event, dict):
+        event = {}
+    handler = {"baseline": baseline, "stop": stop, "guard": guard, "unlock": unlock}.get(mode)
+    if handler is None or RUN["host"] not in SPAWN:
+        print(f"usage: {Path(__file__).name} baseline|stop|guard|unlock [claude|codex]", file=sys.stderr)
+        return 1
+    handler(event)
+    if OUTPUT:
+        print(json.dumps(OUTPUT, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

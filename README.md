@@ -1,12 +1,16 @@
 # Apex Engineering
 
-A software engineering skill for Codex and Claude Code. It routes a task
-through design, implementation, security review, and focused verification, and
-— where the host allows it — it enforces that routing instead of asking the
-model to remember it.
+A shared engineering workflow for LLM agents across projects and hosts. It routes a task through
+design, implementation, security review, and focused verification, and — where
+the host allows it — it enforces that routing instead of asking the model to
+remember it.
 
-Version 0.1.0. Supported technologies: C#/.NET, React, React Native, Dart,
-Swift/SwiftUI, and C++. Other stacks fall back to the common workflow.
+Specialized guides: C#/.NET, React, React Native, Dart, Swift/SwiftUI, and
+C++. Other stacks use the common workflow and their project conventions.
+
+Codex and Claude Code have control adapters. OpenCode has a guidance installer;
+other tools can use the portable package. See [host support](docs/hosts.md) for
+capabilities and verification limits.
 
 ## Why enforcement, not instructions
 
@@ -21,21 +25,24 @@ rather than the model:
 - **Review** — an independent subagent compares the working tree against your
   verbatim instructions before the turn may end.
 
+The controls watch themselves: a turn in which the agent rewrites, creates, or
+deletes the control files cannot end.
+
 Everything else in this repository is guidance. It helps, but it proves
-nothing. See [what has actually been verified](docs/VERIFICATION.md).
+nothing. See [what has actually been verified](docs/verification.md), including
+the one known limit.
 
 ## Layout
 
-| Directory | Responsibility |
+| Directory | Holds |
 | --- | --- |
-| `Engineering/` | Requirements, analysis, architecture, planning, review, and the task ledger |
-| `Coding/` | Per-technology implementation guidance |
-| `Test/` | Acceptance criteria, focused verification, and the runnable suite |
-| `Security/` | Trust boundaries, authorization, data protection, abuse cases |
-| `Claude/` | Claude Code hooks, the `apex-coding` subagent, and the project CLI |
-| `docs/` | Install, verification, design record, and past evaluations |
+| `guides/` | What the agent reads while working: engineering, per-technology coding, test, security |
+| `controls/` | The enforcing code: the project CLI, the Claude Code hooks, and the two subagents |
+| `catalog/` | The record of third-party skills Apex relies on, and the rules for adding one |
+| `tests/` | The suite, the live control check, the mutation check, and the evaluation runners |
+| `docs/` | Install, verification, and past evaluations with their evidence |
 
-`SKILL.md` is the entry point and loads only the references a task needs.
+`SKILL.md` is the entry point and loads only the guides a task needs.
 
 ## Install
 
@@ -45,7 +52,21 @@ python3 install.py status --host all
 ```
 
 Then start a new session. Full detail, including the project controls and host
-sandbox behavior, is in [docs/INSTALL.md](docs/INSTALL.md).
+sandbox behavior, is in [docs/install.md](docs/install.md).
+
+## Run a task
+
+From your target project, use the absolute path to this checkout:
+
+```sh
+python3 /path/to/apex/run_apex.py --host codex --task "Fix the specified bug"
+python3 /path/to/apex/run_apex.py --host claude --task "Fix the specified bug"
+python3 /path/to/apex/run_apex.py --host opencode --task "Fix the specified bug"
+```
+
+Use `--host portable` to generate a task prompt for another tool. The launcher
+uses the same Apex entry point, preserves host permissions and project rules,
+and does not write global settings. See [host support](docs/hosts.md).
 
 ## Develop
 
@@ -53,20 +74,12 @@ sandbox behavior, is in [docs/INSTALL.md](docs/INSTALL.md).
 pip install -r requirements-dev.txt
 ruff check .
 mypy --ignore-missing-imports .
-python3 -m unittest discover -s Test -p 'test_*.py'
+python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
 Every source module passes `mypy --strict`, and GitHub Actions runs the same
-three checks on Python 3.11 to 3.14 across Linux and macOS. See
+checks on Python 3.11 to 3.14 across Linux and macOS. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Documentation
-
-- [Installation and project controls](docs/INSTALL.md)
-- [What has actually been verified](docs/VERIFICATION.md)
-- [Task system](Engineering/TASK_SYSTEM.md) and [Codex coding bridge](Engineering/CODING_BRIDGE.md)
-- [Integration playbooks](Engineering/Integrations/INDEX.md) and [MCP catalog](Engineering/Integrations/MCP_CATALOG.md)
-- [Original MVP design](docs/DESIGN.md) and the [proposed Engineering brain design](docs/BRAIN_DESIGN.md)
 
 ## License
 
