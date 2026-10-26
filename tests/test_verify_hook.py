@@ -471,6 +471,16 @@ class VerifyHookTests(unittest.TestCase):
             result, edit = self.prompt_then_edit(prompt)
             self.assertIsNone(edit, prompt)
 
+    def test_status_check_keeps_authorized_work_running(self):
+        # "tamam mi ?" sent mid-task asks how it is going; locking edits would halt the work the user wants.
+        for prompt in ("tamam mi ?", "Bitti mi?", "ne durumda", "is it done?"):
+            result, edit = self.prompt_then_edit(prompt)
+            self.assertIsNone(edit, prompt)
+            self.assertIn("asked for a status", result["hookSpecificOutput"]["additionalContext"], prompt)
+        for prompt in ("Bu plan tamam mi?", "Apex'in durumu nedir ?"):
+            result, edit = self.prompt_then_edit(prompt)
+            self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
+
     def test_work_requests_phrased_as_questions_or_naming_stop_are_not_locked(self):
         sys.path.insert(0, str(HOOK.parent))
         self.addCleanup(sys.path.remove, str(HOOK.parent))

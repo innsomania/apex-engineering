@@ -288,6 +288,11 @@ GO_AHEAD = re.compile(
     r"\bdevam\b|\b(go on|carry on|keep going|continue)\b|"
     r"\b(et|yap|bak|gel|git|yaz|ekle|sil|bitir|baslat|basla|calistir|duzelt|gonder|pushla|kur|bas)"
     r"s[ae]n[ae]\b")
+# "tamam mi ?" on its own asks how authorized work is going; it must not halt that work.
+STATUS_CHECK = re.compile(
+    r"\W*(tamam m[iu]|oldu mu|bitti mi|ne durumda|durum ne|is it done|are you done|done yet|status)\W*")
+STATUS_NOTE = ("The user asked for a status. Give it in one sentence, then continue any work they already "
+               "authorized; do not start new work.")
 LOCK_REASONS = {
     "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
             "sentences say what state the work is in, then wait for the user's instruction.",
@@ -298,11 +303,13 @@ LOCK_REASONS = {
 
 
 def classify(prompt: str) -> str | None:
-    """'stop', 'question' or None for a user message; a stop signal outranks a question."""
+    """'stop', 'question', 'status' or None for a user message; a stop signal outranks a question."""
     text = prompt.translate(FOLD).lower()
     if STOP_ANYWHERE.search(text) or (
             len(text.split()) <= STOP_COMMAND_WORDS and STOP_COMMANDS.search(text)):
         return "stop"
+    if STATUS_CHECK.fullmatch(text):
+        return "status"
     asks = bool(QUESTION_START.match(text) or text.rstrip().endswith("?")
                 or QUESTION_PARTICLES.search(text))
     if ABUSE.search(text):
@@ -327,8 +334,11 @@ def set_turn_lock(event: Event) -> None:
     prompt = event.get("prompt")
     kind = classify(prompt) if isinstance(prompt, str) else None
     path = lock_path(event.get("session_id", ""))
-    if kind is None:
+    if kind is None or kind == "status":
         path.unlink(missing_ok=True)
+        if kind == "status":
+            emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
+                                         "additionalContext": f"Apex: {STATUS_NOTE}"}})
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     cwd = event.get("cwd") or os.getcwd()
