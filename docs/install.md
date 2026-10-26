@@ -38,8 +38,35 @@ select another directory.
 Run this from your own terminal: a sandboxed Claude Code shell cannot write
 `~/.claude/agents` or `settings.json`.
 
-In Claude Code, Engineering delegates implementation to the `apex-coding`
-subagent.
+In Claude Code, Engineering can delegate bounded implementation to the
+`apex-coding` subagent when delegation is justified.
+
+## OpenCode and other hosts
+
+See [host support](hosts.md) for capabilities and limitations.
+
+```sh
+python3 install.py install --host opencode
+python3 install.py status --host opencode
+python3 install.py uninstall --host opencode
+```
+
+OpenCode uses `XDG_CONFIG_HOME/opencode` or `~/.config/opencode`; override it
+with `--opencode-home`. The installer links the shared skill and preserves
+existing `AGENTS.md` text. It does not install Claude or Codex hooks.
+
+For a host without an adapter:
+
+```sh
+python3 install.py install --host portable --portable-home /chosen/ae-directory
+python3 install.py status --host portable --portable-home /chosen/ae-directory
+python3 install.py uninstall --host portable --portable-home /chosen/ae-directory
+```
+
+Configure that host to load the generated `AGENTS.md`, or explicitly ask it to
+read the linked `skills/apex-engineering/SKILL.md`. The host needs file access
+to this checkout. Portable installation does not configure the host itself.
+`--host all` retains its existing meaning: Codex and Claude Code only.
 
 ## Project controls
 

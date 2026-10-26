@@ -1,12 +1,16 @@
 # Apex Engineering
 
-A software engineering skill for Claude Code and Codex. It routes a task through
+A shared engineering workflow for LLM agents across projects and hosts. It routes a task through
 design, implementation, security review, and focused verification, and — where
 the host allows it — it enforces that routing instead of asking the model to
 remember it.
 
-Supported technologies: C#/.NET, React, React Native, Dart, Swift/SwiftUI, and
-C++. Other stacks fall back to the common workflow.
+Specialized guides: C#/.NET, React, React Native, Dart, Swift/SwiftUI, and
+C++. Other stacks use the common workflow and their project conventions.
+
+Codex and Claude Code have control adapters. OpenCode has a guidance installer;
+other tools can use the portable package. See [host support](docs/hosts.md) for
+capabilities and verification limits.
 
 ## Why enforcement, not instructions
 
@@ -49,6 +53,20 @@ python3 install.py status --host all
 
 Then start a new session. Full detail, including the project controls and host
 sandbox behavior, is in [docs/install.md](docs/install.md).
+
+## Run a task
+
+From your target project, use the absolute path to this checkout:
+
+```sh
+python3 /path/to/apex/run_apex.py --host codex --task "Fix the specified bug"
+python3 /path/to/apex/run_apex.py --host claude --task "Fix the specified bug"
+python3 /path/to/apex/run_apex.py --host opencode --task "Fix the specified bug"
+```
+
+Use `--host portable` to generate a task prompt for another tool. The launcher
+uses the same Apex entry point, preserves host permissions and project rules,
+and does not write global settings. See [host support](docs/hosts.md).
 
 ## Develop
 

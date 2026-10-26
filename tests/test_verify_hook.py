@@ -152,7 +152,7 @@ class VerifyHookTests(unittest.TestCase):
             self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", headers)
 
     def test_codex_question_turn_refuses_patches(self):
-        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="Neden bozuldu?")
+        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="Neden async kullandik?")
         result = self.patch("Add File: notes.txt")
         self.assertIn("blocked for this turn", result["hookSpecificOutput"]["permissionDecisionReason"])
 
@@ -460,7 +460,7 @@ class VerifyHookTests(unittest.TestCase):
         return result, edit
 
     def test_question_and_stop_messages_lock_edits_for_that_turn(self):
-        for prompt, kind in (("bu aynisi mi", "question"), ("Neden çalışmıyor?", "question"),
+        for prompt, kind in (("bu aynisi mi", "question"), ("Neden async kullandik?", "question"),
                              ("dur", "stop"), ("ne yapıyorsun ya", "stop"), ("kafayı yiyeceğim", "stop")):
             result, edit = self.prompt_then_edit(prompt)
             self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
@@ -485,13 +485,21 @@ class VerifyHookTests(unittest.TestCase):
                  "Bu sene ne değişti?": "question", "Parayı kasana mı koydun?": "question",
                  "Testleri yazsana, neden bekliyorsun?": None, "Docker acmali miyim ?": "question",
                  "Neden bu kadar dusundun atom mu parçalıyorsun ?": "question",
-                 "Neden bozuldu?": "question", "How does the cache work": "question",
-                 "bu aynisi mi": "question", "dur": "stop", "Bekle!": "stop", "stop it now": "stop"}
+                 "Neden async kullandik?": "question",
+                 # A question reporting something broken wants the fix, so it does not lock.
+                 "Neden çalışmıyor?": None, "Neden bozuldu?": None, "Why does the login fail?": None, "How does the cache work": "question",
+                 "bu aynisi mi": "question", "dur": "stop", "Bekle!": "stop", "stop it now": "stop",
+                 # Abuse inside a question is a complaint that wants the fix; abuse alone still stops.
+                 "Neden Boyle hatalar var orospu cocugu": None,
+                 "Halen onarlarsa diyor ya sen kafayı mı yedin ?": None,
+                 "Allahin belasi halen yazi var birde neden sürekli hata dikiyor he ?": None,
+                 "Senin sülaleni sikiyim neden islerini yapmadın orospu evladı": None,
+                 "orospu çocuğu": "stop", "salak misin": "stop", "amk bu ne": "stop"}
         for prompt, kind in cases.items():
             self.assertEqual(apex_verify_hook.classify(prompt), kind, prompt)
 
     def test_plan_approval_lifts_the_turn_lock(self):
-        _result, edit = self.prompt_then_edit("Neden bozuk, düzeltir misin?")
+        _result, edit = self.prompt_then_edit("Neden async kullandik, düzeltir misin?")
         self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIsNone(self.hook("unlock", hook_event_name="PostToolUse", tool_name="ExitPlanMode"))
         self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",

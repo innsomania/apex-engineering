@@ -17,6 +17,51 @@ class InstallationTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
 
+    def test_guidance_hosts_round_trip_preserves_rules_and_settings(self):
+        for host in ("opencode", "portable"):
+            with self.subTest(host=host):
+                home = self.home / host
+                home.mkdir()
+                rules = home / "AGENTS.md"
+                original = b"# User rules\n"
+                rules.write_bytes(original)
+                settings = home / "opencode.json"
+                settings.write_bytes(b'{"custom": true}\n')
+                installer.configure(home, "install", host)
+                installed = rules.read_bytes()
+                self.assertTrue(installed.startswith(original))
+                self.assertEqual((home / "skills/apex-engineering").resolve(), installer.SOURCE)
+                self.assertIn("hooks=unsupported", installer.configure(home, "status", host))
+                installer.configure(home, "install", host)
+                self.assertEqual(rules.read_bytes(), installed)
+                self.assertEqual(sorted(p.name for p in home.iterdir()),
+                                 ["AGENTS.md", "opencode.json", "skills"])
+                installer.configure(home, "uninstall", host)
+                self.assertEqual(rules.read_bytes(), original)
+                self.assertEqual(settings.read_bytes(), b'{"custom": true}\n')
+                self.assertFalse(os.path.lexists(home / "skills/apex-engineering"))
+
+    def test_portable_cli_requires_explicit_destination(self):
+        from unittest.mock import patch
+        import contextlib
+        import io
+        with patch("sys.argv", ["install.py", "install", "--host", "portable"]):
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit) as error:
+                    installer.main()
+        self.assertEqual(error.exception.code, 2)
+
+    def test_opencode_cli_uses_xdg_config_directory(self):
+        from unittest.mock import patch
+        import contextlib
+        import io
+        with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(self.home)}):
+            with patch("sys.argv", ["install.py", "install", "--host", "opencode"]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(installer.main(), 0)
+        self.assertTrue((self.home / "opencode/skills/apex-engineering/SKILL.md").is_file())
+        self.assertTrue((self.home / "opencode/AGENTS.md").is_file())
+
     def test_preserves_rules_is_idempotent_and_removes_only_owned_content(self):
         original = "# Existing policy\r\nTürkçe kurallar".encode()
         agents = self.home / "AGENTS.md"

@@ -15,7 +15,8 @@ Projects without these files are untouched, except for the turn lock below, whic
 
 Modes (first argument; an optional second argument names the host, `claude` or `codex`):
   baseline  UserPromptSubmit: remember the working tree and record the user's message. A message
-            that asks a question or says stop (including anger) locks file edits for that turn.
+            that asks a question or says stop (including abuse that is not a question) locks
+            file edits for that turn.
             In a git project without `.apex`, the agent is asked once to offer the user setup.
   stop      Stop / SubagentStop: block if files outside the scope changed this turn, then
             run the verify command, then require a passing review; block on failure.
@@ -266,10 +267,18 @@ FOLD = str.maketrans("ıİşŞğĞüÜöÖçÇâÂîÎ", "iissgguuoocCaAiI")
 # A stop command counts only as (nearly) the whole message: "Fix the Stop hook" is work.
 STOP_COMMANDS = re.compile(r"\b(dur|durdur|stop|yeter|bekle)\b")
 STOP_COMMAND_WORDS = 3
-STOP_ANYWHERE = re.compile(
-    r"\b(salak|aptal|gerizekali|orospu|siktir|sikim|amk|aq|"
-    r"allah belani|ne yapiyorsun|ne yapiyosun|kafayi yi\w*)\b")
+STOP_ANYWHERE = re.compile(r"\b(ne yapiyorsun|ne yapiyosun|kafayi yi\w*)\b")
+# Abuse stops the agent, but abuse inside a question ("neden boyle, orospu cocugu?") is a complaint
+# demanding the fix, so it must not lock edits.
+ABUSE = re.compile(
+    r"\b(salak|aptal|gerizekali|orospu|siktir|sikim|amk|aq|allah belani|allahin belasi|"
+    r"kafayi mi yedin)\b")
 QUESTION_START = re.compile(r"\W*(neden|niye|nasil|nerede|nereye|hangi|kim|why|how|what|where|which)\b")
+# "neden calismiyor?" reports something broken: the user wants it fixed, not just explained.
+FAILURE_REPORT = re.compile(
+    r"\b(calismiyor|calismadi|bozuk\w*|bozul\w*|hata\w*|olmuyor|acilmiyor|yuklenmiyor|gelmiyor|"
+    r"broken|error|errors|fail|fails|failed|failing|crash\w*|not working|doesn.?t work)\b")
+QUESTION_ANYWHERE = re.compile(r"\b(neden|niye|nasil|why|how)\b")
 QUESTION_PARTICLES = re.compile(r"\b(mi|mu|midir|mudur|miydi|muydu)\b")
 # "düzeltir misin?", "can you add tests?": requests phrased as questions.
 POLITE_REQUEST = re.compile(r"\w[aeiu]r m[iu]s[iu]n\b|\b(can|could|would|will) you\b|\blutfen\b|\bplease\b")
@@ -294,13 +303,17 @@ def classify(prompt: str) -> str | None:
     if STOP_ANYWHERE.search(text) or (
             len(text.split()) <= STOP_COMMAND_WORDS and STOP_COMMANDS.search(text)):
         return "stop"
-    if GO_AHEAD.search(text):
+    asks = bool(QUESTION_START.match(text) or text.rstrip().endswith("?")
+                or QUESTION_PARTICLES.search(text))
+    if ABUSE.search(text):
+        return None if asks or QUESTION_ANYWHERE.search(text) else "stop"
+    if GO_AHEAD.search(text) or (asks and FAILURE_REPORT.search(text)):
         return None
     if QUESTION_START.match(text):
         return "question"
     if POLITE_REQUEST.search(text):
         return None
-    if text.rstrip().endswith("?") or QUESTION_PARTICLES.search(text):
+    if asks:
         return "question"
     return None
 

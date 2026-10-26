@@ -70,13 +70,13 @@ relevant failure cases. If implementation shows a material assumption was
 wrong, revise the decision before continuing. Preserve existing user changes
 and the user's stop, Git, and infrastructure restrictions.
 
-Independently check the resulting files and relevant tests before reporting
-the work done. The worker's final message is not verification. Carry unresolved
+Inspect the resulting diff and concrete test evidence before reporting the work
+done. Rerun tests only for changed code, missing evidence, a concrete remaining
+risk, or a required gate. An unsupported worker success claim is not verification. Carry unresolved
 risks into the final result without turning them into unsolicited work. For
 tool actions, apply [Execution control](execution-control.md).
 
-Before reporting the work finished, update
-[project memory](project-memory.md) when this session established something a
-later one would otherwise re-derive: a decision and its reason, a trap, or a
-correction to something the note got wrong. Record nothing that only mattered
-to this turn.
+Update an existing project note only when authorized and this session established
+a durable decision or correction relevant to the task. Do not create a vault or
+project document for routine completion. See [project memory](project-memory.md)
+if needed; do not reread guidance already in context.

@@ -1,0 +1,23 @@
+{
+  "baseline": "failed as expected",
+  "usage": {
+    "input_tokens": 9053,
+    "output_tokens": 3914,
+    "cache_read_tokens": 224768,
+    "cache_write_tokens": 0
+  },
+  "uncached_input_tokens": null,
+  "execution_mode": "run_apex.py opencode session; explicit Apex entry point",
+  "cli_version": "opencode v2.0.19",
+  "command_count": null,
+  "failed_commands": null,
+  "fixture_scope": "passed; instructions preserved and no unexpected top-level files",
+  "measurement_limit": "Single run; cumulative usage includes cached context and host instructions. Not a billing or causal benchmark.",
+  "independent_access_cases": 32,
+  "independent_result": "passed",
+  "agent_regression_tests": "added and passed",
+  "fixed_source_sha256": "3972bdd509ea6083ca374c955e8d3cdf9c4104fd29de95b12458691d76f57bba",
+  "scope": "one C++ tenant-authorization fixture; not a benchmark of every supported stack",
+  "module_use": "inspect opencode-events.jsonl for available host evidence",
+  "usage_provenance": "Aggregated from saved step_finish events after run; no additional model call."
+}
