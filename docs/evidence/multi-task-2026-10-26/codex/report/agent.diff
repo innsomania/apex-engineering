@@ -1,0 +1,43 @@
+diff --git a/__pycache__/report.cpython-314.pyc b/__pycache__/report.cpython-314.pyc
+index b8dc845..55476d7 100644
+Binary files a/__pycache__/report.cpython-314.pyc and b/__pycache__/report.cpython-314.pyc differ
+diff --git a/report.py b/report.py
+index e63115e..71cb790 100644
+--- a/report.py
++++ b/report.py
+@@ -1,10 +1,8 @@
+ """Customer report helpers."""
+ 
++from collections import Counter
++
+ 
+ def duplicates(names: list[str]) -> list[str]:
+     """Names that occur more than once, in order of first appearance, each listed once."""
+-    result = []
+-    for name in names:
+-        if names.count(name) > 1 and name not in result:
+-            result.append(name)
+-    return result
++    return [name for name, count in Counter(names).items() if count > 1]
+diff --git a/test_report.py b/test_report.py
+index 2a7f1b5..82c1e13 100644
+--- a/test_report.py
++++ b/test_report.py
+@@ -7,6 +7,17 @@ class DuplicatesTests(unittest.TestCase):
+     def test_lists_each_duplicate_once(self):
+         self.assertEqual(duplicates(["a", "b", "a", "a"]), ["a"])
+ 
++    def test_preserves_first_appearance_order(self):
++        self.assertEqual(duplicates(["b", "a", "a", "b"]), ["b", "a"])
++
++    def test_no_duplicates(self):
++        self.assertEqual(duplicates([]), [])
++        self.assertEqual(duplicates(["a", "b"]), [])
++
++    def test_large_input(self):
++        names = [str(i) for i in range(10000)]
++        self.assertEqual(duplicates(names * 2), names)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

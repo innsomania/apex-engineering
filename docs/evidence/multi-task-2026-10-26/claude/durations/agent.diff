@@ -1,0 +1,51 @@
+diff --git a/__pycache__/durations.cpython-314.pyc b/__pycache__/durations.cpython-314.pyc
+index 3aa9d76..4f4a5af 100644
+Binary files a/__pycache__/durations.cpython-314.pyc and b/__pycache__/durations.cpython-314.pyc differ
+diff --git a/durations.py b/durations.py
+index 888cb05..c03884e 100644
+--- a/durations.py
++++ b/durations.py
+@@ -2,8 +2,7 @@
+ 
+ import re
+ 
+-_UNITS = {"h": 3600, "m": 60, "s": 1}
+-_PART = re.compile(r"(\d+)([hms])")
++_DURATION = re.compile(r"(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?", re.ASCII)
+ 
+ 
+ def parse_duration(text: str) -> int:
+@@ -12,8 +11,8 @@ def parse_duration(text: str) -> int:
+     Units are h, m and s, each at most once, largest first: "2h", "90m", "1h5s", "1h1m1s".
+     Anything else, including the empty string, raises ValueError.
+     """
+-    match = _PART.search(text)
+-    if not match:
++    match = _DURATION.fullmatch(text)
++    if not match or not text:
+         raise ValueError(f"invalid duration: {text!r}")
+-    value, unit = match.groups()
+-    return int(value) * _UNITS[unit]
++    hours, minutes, seconds = (int(g or 0) for g in match.groups())
++    return hours * 3600 + minutes * 60 + seconds
+diff --git a/test_durations.py b/test_durations.py
+index a9264ad..b252785 100644
+--- a/test_durations.py
++++ b/test_durations.py
+@@ -7,6 +7,16 @@ class ParseDurationTests(unittest.TestCase):
+     def test_single_unit(self):
+         self.assertEqual(parse_duration("45s"), 45)
+ 
++    def test_multiple_units(self):
++        self.assertEqual(parse_duration("1h30m"), 5400)
++        self.assertEqual(parse_duration("1h5s"), 3605)
++        self.assertEqual(parse_duration("1h1m1s"), 3661)
++
++    def test_invalid(self):
++        for text in ["", "1h30", "30m1h", "1h1h", "x1h", "1h "]:
++            with self.assertRaises(ValueError, msg=text):
++                parse_duration(text)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

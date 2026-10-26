@@ -1,0 +1,71 @@
+diff --git a/__pycache__/inventory.cpython-314.pyc b/__pycache__/inventory.cpython-314.pyc
+index 3052ae5..d72071f 100644
+Binary files a/__pycache__/inventory.cpython-314.pyc and b/__pycache__/inventory.cpython-314.pyc differ
+diff --git a/inventory.py b/inventory.py
+index b5288ed..2fff808 100644
+--- a/inventory.py
++++ b/inventory.py
+@@ -1,5 +1,6 @@
+ """Summarise an inventory file: one `name,quantity,unit_price` line per item."""
+ 
++import json
+ import sys
+ 
+ 
+@@ -20,11 +21,18 @@ def summary(items: list[tuple[str, int, float]]) -> tuple[int, float]:
+ 
+ 
+ def main(argv: list[str]) -> int:
++    json_output = "--json" in argv
++    if json_output:
++        argv = argv.copy()
++        argv.remove("--json")
+     if len(argv) != 1:
+         print("usage: inventory.py FILE", file=sys.stderr)
+         return 2
+     count, total = summary(load(argv[0]))
+-    print(f"{count} items, total {total:.2f}")
++    if json_output:
++        print(json.dumps({"count": count, "total": total}))
++    else:
++        print(f"{count} items, total {total:.2f}")
+     return 0
+ 
+ 
+diff --git a/test_inventory.py b/test_inventory.py
+index 657b045..0336187 100644
+--- a/test_inventory.py
++++ b/test_inventory.py
+@@ -1,6 +1,9 @@
++import io
+ import unittest
++from contextlib import redirect_stdout
++from unittest.mock import mock_open, patch
+ 
+-from inventory import summary
++from inventory import main, summary
+ 
+ 
+ class SummaryTests(unittest.TestCase):
+@@ -8,5 +11,21 @@ class SummaryTests(unittest.TestCase):
+         self.assertEqual(summary([("pen", 2, 1.5), ("cup", 1, 4.0)]), (2, 7.0))
+ 
+ 
++class MainTests(unittest.TestCase):
++    def test_output_formats(self):
++        cases = [
++            (["items.csv"], "2 items, total 7.00\n"),
++            (["--json", "items.csv"], '{"count": 2, "total": 7.0}\n'),
++            (["items.csv", "--json"], '{"count": 2, "total": 7.0}\n'),
++        ]
++        for argv, expected in cases:
++            with self.subTest(argv=argv):
++                output = io.StringIO()
++                with patch("builtins.open", mock_open(read_data="pen,2,1.5\ncup,1,4.0\n")):
++                    with redirect_stdout(output):
++                        self.assertEqual(main(argv), 0)
++                self.assertEqual(output.getvalue(), expected)
++
++
+ if __name__ == "__main__":
+     unittest.main()
