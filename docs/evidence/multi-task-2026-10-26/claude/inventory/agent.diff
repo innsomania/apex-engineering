@@ -1,0 +1,77 @@
+diff --git a/__pycache__/inventory.cpython-314.pyc b/__pycache__/inventory.cpython-314.pyc
+index 3052ae5..981f437 100644
+Binary files a/__pycache__/inventory.cpython-314.pyc and b/__pycache__/inventory.cpython-314.pyc differ
+diff --git a/inventory.py b/inventory.py
+index b5288ed..0f7dfae 100644
+--- a/inventory.py
++++ b/inventory.py
+@@ -1,5 +1,6 @@
+ """Summarise an inventory file: one `name,quantity,unit_price` line per item."""
+ 
++import json
+ import sys
+ 
+ 
+@@ -20,11 +21,17 @@ def summary(items: list[tuple[str, int, float]]) -> tuple[int, float]:
+ 
+ 
+ def main(argv: list[str]) -> int:
++    as_json = argv[:1] == ["--json"]
++    if as_json:
++        argv = argv[1:]
+     if len(argv) != 1:
+-        print("usage: inventory.py FILE", file=sys.stderr)
++        print("usage: inventory.py [--json] FILE", file=sys.stderr)
+         return 2
+     count, total = summary(load(argv[0]))
+-    print(f"{count} items, total {total:.2f}")
++    if as_json:
++        print(json.dumps({"count": count, "total": total}))
++    else:
++        print(f"{count} items, total {total:.2f}")
+     return 0
+ 
+ 
+diff --git a/test_inventory.py b/test_inventory.py
+index 657b045..732326c 100644
+--- a/test_inventory.py
++++ b/test_inventory.py
+@@ -1,6 +1,12 @@
+ import unittest
+ 
+-from inventory import summary
++import contextlib
++import io
++import json
++import os
++import tempfile
++
++from inventory import main, summary
+ 
+ 
+ class SummaryTests(unittest.TestCase):
+@@ -8,5 +14,24 @@ class SummaryTests(unittest.TestCase):
+         self.assertEqual(summary([("pen", 2, 1.5), ("cup", 1, 4.0)]), (2, 7.0))
+ 
+ 
++class MainTests(unittest.TestCase):
++    def run_main(self, *args):
++        with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as handle:
++            handle.write("pen,2,1.5\ncup,1,4.0\n")
++        self.addCleanup(os.remove, handle.name)
++        out = io.StringIO()
++        with contextlib.redirect_stdout(out):
++            code = main([*args, handle.name])
++        return code, out.getvalue()
++
++    def test_text_output_unchanged(self):
++        self.assertEqual(self.run_main(), (0, "2 items, total 7.00\n"))
++
++    def test_json_output(self):
++        code, out = self.run_main("--json")
++        self.assertEqual(code, 0)
++        self.assertEqual(json.loads(out), {"count": 2, "total": 7.0})
++
++
+ if __name__ == "__main__":
+     unittest.main()

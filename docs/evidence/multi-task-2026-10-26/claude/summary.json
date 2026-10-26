@@ -1,0 +1,77 @@
+{
+ "durations": {
+  "exit": 0,
+  "seconds": 36,
+  "oracle": {
+   "cases": 22,
+   "passed": 22,
+   "failures": []
+  },
+  "project_tests": "OK",
+  "changed": [
+   "__pycache__/durations.cpython-314.pyc",
+   "durations.py",
+   "test_durations.py",
+   "__pycache__/test_durations.cpython-314.pyc"
+  ],
+  "unexpected_changes": [],
+  "subtype": "success",
+  "cost_usd": 0.284317,
+  "usage": {
+   "input_tokens": 12,
+   "cache_creation_input_tokens": 24851,
+   "cache_read_input_tokens": 167505,
+   "output_tokens": 2598
+  }
+ },
+ "inventory": {
+  "exit": 0,
+  "seconds": 30,
+  "oracle": {
+   "cases": 6,
+   "passed": 6,
+   "failures": []
+  },
+  "project_tests": "OK",
+  "changed": [
+   "__pycache__/inventory.cpython-314.pyc",
+   "inventory.py",
+   "test_inventory.py",
+   "__pycache__/test_inventory.cpython-314.pyc"
+  ],
+  "unexpected_changes": [],
+  "subtype": "success",
+  "cost_usd": 0.2682178,
+  "usage": {
+   "input_tokens": 8,
+   "cache_creation_input_tokens": 24716,
+   "cache_read_input_tokens": 102789,
+   "output_tokens": 2495
+  }
+ },
+ "report": {
+  "exit": 0,
+  "seconds": 36,
+  "oracle": {
+   "cases": 8,
+   "passed": 8,
+   "failures": []
+  },
+  "project_tests": "OK",
+  "changed": [
+   "__pycache__/report.cpython-314.pyc",
+   "report.py",
+   "test_report.py",
+   "__pycache__/test_report.cpython-314.pyc"
+  ],
+  "unexpected_changes": [],
+  "subtype": "success",
+  "cost_usd": 0.27218919999999996,
+  "usage": {
+   "input_tokens": 14,
+   "cache_creation_input_tokens": 23992,
+   "cache_read_input_tokens": 197586,
+   "output_tokens": 2034
+  }
+ }
+}

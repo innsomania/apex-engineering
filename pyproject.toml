@@ -22,6 +22,8 @@ python_files = ["test_*.py"]
 [tool.ruff]
 line-length = 120
 target-version = "py311"
+# Recorded evaluation evidence, kept as the agents and fixtures left it; the frozen fixture is meant to be ugly.
+extend-exclude = ["docs/evidence"]
 
 [tool.ruff.lint]
 select = [
@@ -74,4 +76,4 @@ strict = true
 # tests/ holds the suites and evaluation runners: they
 # are checked by running them, and annotating assertions on internals would add
 # noise without catching anything.
-exclude = "^tests/"
+exclude = "^(tests|docs/evidence)/"
