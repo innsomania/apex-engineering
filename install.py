@@ -238,7 +238,8 @@ def main() -> int:
     parser.add_argument("--opencode-home", type=Path,
                         help="OpenCode config directory (default: XDG_CONFIG_HOME/opencode or ~/.config/opencode)")
     parser.add_argument("--portable-home", type=Path,
-                        help="explicit directory for portable AGENTS.md and skills; host loading must be configured separately")
+                        help="explicit directory for portable AGENTS.md and skills; "
+                             "host loading must be configured separately")
     args = parser.parse_args()
     if args.host == "portable" and args.portable_home is None:
         parser.error("--host portable requires --portable-home; no host directory is assumed")

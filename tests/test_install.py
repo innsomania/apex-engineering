@@ -42,9 +42,9 @@ class InstallationTests(unittest.TestCase):
                 self.assertFalse(os.path.lexists(home / "skills/apex-engineering"))
 
     def test_portable_cli_requires_explicit_destination(self):
-        from unittest.mock import patch
         import contextlib
         import io
+        from unittest.mock import patch
         with patch("sys.argv", ["install.py", "install", "--host", "portable"]):
             with contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as error:
@@ -52,9 +52,9 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 2)
 
     def test_opencode_cli_uses_xdg_config_directory(self):
-        from unittest.mock import patch
         import contextlib
         import io
+        from unittest.mock import patch
         with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(self.home)}):
             with patch("sys.argv", ["install.py", "install", "--host", "opencode"]):
                 with contextlib.redirect_stdout(io.StringIO()):

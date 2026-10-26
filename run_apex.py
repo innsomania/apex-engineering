@@ -55,7 +55,7 @@ def main() -> None:
         print(json.dumps(command, ensure_ascii=False, indent=2))
         return
     os.environ["PWD"] = str(Path.cwd())
-    os.execvp(command[0], command)
+    os.execvp(command[0], command)  # noqa: S606 - host CLI from a fixed table, argv list, no shell
 
 
 if __name__ == "__main__":
