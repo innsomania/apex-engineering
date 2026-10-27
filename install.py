@@ -15,6 +15,7 @@ SOURCE = Path(__file__).resolve().parent
 CLAUDE_CODE = SOURCE / "controls" / "claude-code"
 AGENTS = CLAUDE_CODE / "agents"
 CODEX_AGENTS = SOURCE / "controls" / "codex" / "agents"
+MANAGED = b"# Managed by Apex Engineering install.py; local edits are overwritten.\n"
 START = b"\n<!-- apex-engineering:begin -->\n"
 END = b"<!-- apex-engineering:end -->\n"
 
@@ -48,8 +49,10 @@ HOSTS: dict[str, dict[str, Any]] = {
     "codex": {"env": "CODEX_HOME", "default": Path.home() / ".codex",
               "instructions": "AGENTS.md", "override": "AGENTS.override.md", "text": CODEX_TEXT,
               "hooks": "hooks.json",
-              "links": {"skills/apex-engineering": SOURCE,
-                        "agents/apex-reviewer.toml": CODEX_AGENTS / "apex-reviewer.toml"}},
+              "links": {"skills/apex-engineering": SOURCE},
+              # Codex lists a symlinked agent file but refuses to spawn it, so agents are copied.
+              "copies": {"agents/apex-coding.toml": CODEX_AGENTS / "apex-coding.toml",
+                         "agents/apex-reviewer.toml": CODEX_AGENTS / "apex-reviewer.toml"}},
     "claude": {"env": "CLAUDE_CONFIG_DIR", "default": Path.home() / ".claude",
                "instructions": "CLAUDE.md", "override": None, "text": CLAUDE_TEXT, "hooks": "settings.json",
                "links": {"skills/apex-engineering": SOURCE,
@@ -178,20 +181,31 @@ def configure(home: str | Path, action: str, host: str = "codex") -> str:
         if os.path.lexists(link) and not ours:
             raise ValueError(f"Existing file is not owned by this checkout: {link}")
         owned[link] = ours
+    copies: dict[Path, Path] = {home / name: source for name, source in spec.get("copies", {}).items()}
+    for copy, source in copies.items():
+        # An older install linked the agent; that link is ours to replace.
+        ours = (copy.is_symlink() and copy.resolve() == source) or (
+            not copy.is_symlink() and copy.is_file() and copy.read_bytes().startswith(MANAGED))
+        if os.path.lexists(copy) and not ours:
+            raise ValueError(f"Existing file is not owned by this checkout: {copy}")
+        owned[copy] = ours
     settings_path = home / spec["hooks"] if spec["hooks"] else None
     settings = read_settings(settings_path) if settings_path else {}
     hooks_present = settings_path is not None and merge_hooks(settings, False, host) != settings
     override = home / spec["override"] if spec["override"] else None
     override_active = override is not None and override.exists() and override.stat().st_size > 0
     if action == "status":
-        state = "linked" if all(owned.values()) else "partial" if any(owned.values()) else "missing"
+        fresh = {copy: owned[copy] and not copy.is_symlink() and copy.read_bytes() == MANAGED + source.read_bytes()
+                 for copy, source in copies.items()}
+        current = {**owned, **fresh}
+        state = "linked" if all(current.values()) else "partial" if any(current.values()) else "missing"
         return (f"host={host}, skill={state}, instructions={'present' if installed_block else 'missing'}"
                 + f", hooks={'unsupported' if settings_path is None else 'present' if hooks_present else 'missing'}"
                 + (f", override={'present' if override_active else 'absent'}" if override else ""))
     if action == "install":
         if override is not None and override_active:
             raise ValueError(f"{override.name} may mask global instructions; reconcile it before installation.")
-        missing = [target for target in links.values() if not target.exists()]
+        missing = [target for target in (*links.values(), *copies.values()) if not target.exists()]
         if missing:
             raise ValueError(f"Source file is missing: {missing[0]}")
         created = []
@@ -201,6 +215,12 @@ def configure(home: str | Path, action: str, host: str = "codex") -> str:
                     link.parent.mkdir(parents=True, exist_ok=True)
                     link.symlink_to(target, target_is_directory=target.is_dir())
                     created.append(link)
+            for copy, source in copies.items():
+                if copy.is_symlink():
+                    copy.unlink()
+                copy.parent.mkdir(parents=True, exist_ok=True)
+                if not copy.exists() or copy.read_bytes() != MANAGED + source.read_bytes():
+                    atomic_write(copy, MANAGED + source.read_bytes())
             if settings_path is not None and merge_hooks(settings, True, host) != settings:
                 atomic_write(settings_path, (json.dumps(merge_hooks(settings, True, host), indent=2,
                                                         ensure_ascii=False) + "\n").encode())
@@ -220,9 +240,9 @@ def configure(home: str | Path, action: str, host: str = "codex") -> str:
                                                     ensure_ascii=False) + "\n").encode())
         if installed_block:
             atomic_write(instructions, outside)
-        for link, ours in owned.items():
+        for path, ours in owned.items():
             if ours:
-                link.unlink()
+                path.unlink()
         return f"Removed Apex links and managed instructions for {host}; other content preserved."
     raise ValueError(f"Unknown action: {action}")
 
