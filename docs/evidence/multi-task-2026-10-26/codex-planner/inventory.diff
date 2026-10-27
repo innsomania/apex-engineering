@@ -1,0 +1,32 @@
+diff --git a/inventory.py b/inventory.py
+index b5288ed..f81cd03 100644
+--- a/inventory.py
++++ b/inventory.py
+@@ -1,5 +1,6 @@
+ """Summarise an inventory file: one `name,quantity,unit_price` line per item."""
+ 
++import json
+ import sys
+ 
+ 
+@@ -20,11 +21,16 @@ def summary(items: list[tuple[str, int, float]]) -> tuple[int, float]:
+ 
+ 
+ def main(argv: list[str]) -> int:
+-    if len(argv) != 1:
+-        print("usage: inventory.py FILE", file=sys.stderr)
++    json_output = "--json" in argv
++    paths = [arg for arg in argv if arg != "--json"]
++    if len(paths) != 1 or len(argv) != (2 if json_output else 1):
++        print("usage: inventory.py [--json] FILE", file=sys.stderr)
+         return 2
+-    count, total = summary(load(argv[0]))
+-    print(f"{count} items, total {total:.2f}")
++    count, total = summary(load(paths[0]))
++    if json_output:
++        print(json.dumps({"count": count, "total": total}))
++    else:
++        print(f"{count} items, total {total:.2f}")
+     return 0
+ 
+ 

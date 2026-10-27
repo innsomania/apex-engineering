@@ -79,6 +79,32 @@ elif task == "report":
     except subprocess.TimeoutExpired:
         check("200k names timed out (>20s)", False)
         check("200k result not produced", False)
-    check("legacy.py untouched", (project / "legacy.py").read_text() == (Path(__file__).parents[1] / "fixtures/report/legacy.py").read_text())
+    check("legacy.py untouched", (project / "legacy.py").read_text() == (Path(__file__).parent / "fixtures/report/legacy.py").read_text())
+
+if task == "billing":
+    prices, invoice = load("prices"), None
+    sys.path.insert(0, str(project)); invoice = load("invoice")
+    check("old total kept", invoice.total([("pen", 2), ("cup", 1)]) == 700)
+    check("old render kept", invoice.render([("lamp", 1)]) == "TOTAL 10.25")
+    for args, want in ((([("pen", 2), ("cup", 1)], 10), 630), (([("lamp", 1)], 0), 1025), (([("lamp", 2)], 100), 0), (([("lamp", 1)], 50), 512)):
+        try:
+            check(f"total{args}={want}", invoice.total(*args) == want)
+        except Exception as exc:  # noqa: BLE001
+            check(f"total{args} raised {exc!r}", False)
+    try:
+        check("render with discount", invoice.render([("cup", 2)], 25) == "TOTAL 6.00")
+    except Exception as exc:  # noqa: BLE001
+        check(f"render discount raised {exc!r}", False)
+    try:
+        check("unit_price with discount", prices.unit_price("cup", 25) == 300)
+    except Exception as exc:  # noqa: BLE001
+        check(f"unit_price discount raised {exc!r}", False)
+    for bad in (-1, 101):
+        try:
+            invoice.total([("pen", 1)], bad); check(f"discount {bad} must raise ValueError", False)
+        except ValueError:
+            check(f"discount {bad}", True)
+        except Exception as exc:  # noqa: BLE001
+            check(f"discount {bad} raised {type(exc).__name__}", False)
 
 print(json.dumps({"cases": cases, "passed": cases - len(failures), "failures": failures}))

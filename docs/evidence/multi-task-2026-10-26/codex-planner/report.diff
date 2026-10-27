@@ -1,0 +1,16 @@
+diff --git a/report.py b/report.py
+index e63115e..ba92f8c 100644
+--- a/report.py
++++ b/report.py
+@@ -3,8 +3,7 @@
+ 
+ def duplicates(names: list[str]) -> list[str]:
+     """Names that occur more than once, in order of first appearance, each listed once."""
+-    result = []
++    counts = {}
+     for name in names:
+-        if names.count(name) > 1 and name not in result:
+-            result.append(name)
+-    return result
++        counts[name] = counts.get(name, 0) + 1
++    return [name for name, count in counts.items() if count > 1]

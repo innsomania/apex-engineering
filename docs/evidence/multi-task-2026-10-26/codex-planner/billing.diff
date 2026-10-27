@@ -1,0 +1,93 @@
+diff --git a/invoice.py b/invoice.py
+index 671e76a..e87856f 100644
+--- a/invoice.py
++++ b/invoice.py
+@@ -1,12 +1,13 @@
+ """Invoice totals."""
+ 
+-from prices import unit_price
++from prices import _validate_discount, unit_price
+ 
+ 
+-def total(lines: list[tuple[str, int]]) -> int:
++def total(lines: list[tuple[str, int]], discount: int = 0) -> int:
+     """Total in cents for (item, quantity) lines."""
+-    return sum(unit_price(item) * quantity for item, quantity in lines)
++    _validate_discount(discount)
++    return sum(unit_price(item, discount) * quantity for item, quantity in lines)
+ 
+ 
+-def render(lines: list[tuple[str, int]]) -> str:
+-    return f"TOTAL {total(lines) / 100:.2f}"
++def render(lines: list[tuple[str, int]], discount: int = 0) -> str:
++    return f"TOTAL {total(lines, discount) / 100:.2f}"
+diff --git a/prices.py b/prices.py
+index e7aa04a..3f2fbdf 100644
+--- a/prices.py
++++ b/prices.py
+@@ -3,6 +3,12 @@
+ PRICES = {"pen": 150, "cup": 400, "lamp": 1025}
+ 
+ 
+-def unit_price(item: str) -> int:
++def _validate_discount(discount: int) -> None:
++    if type(discount) is not int or not 0 <= discount <= 100:
++        raise ValueError("discount must be an integer percentage from 0 to 100")
++
++
++def unit_price(item: str, discount: int = 0) -> int:
+     """Price of one item in cents; unknown items raise KeyError."""
+-    return PRICES[item]
++    _validate_discount(discount)
++    return PRICES[item] * (100 - discount) // 100
+diff --git a/test_invoice.py b/test_invoice.py
+index 17bc5a3..b56ef4e 100644
+--- a/test_invoice.py
++++ b/test_invoice.py
+@@ -1,6 +1,7 @@
+ import unittest
+ 
+ from invoice import render, total
++from prices import unit_price
+ 
+ 
+ class InvoiceTests(unittest.TestCase):
+@@ -10,6 +11,38 @@ class InvoiceTests(unittest.TestCase):
+     def test_render(self):
+         self.assertEqual(render([("lamp", 1)]), "TOTAL 10.25")
+ 
++    def test_discount(self):
++        self.assertEqual(unit_price("lamp", 10), 922)
++        self.assertEqual(total([("pen", 2), ("cup", 1)], 10), 630)
++        self.assertEqual(render([("lamp", 1)], 10), "TOTAL 9.22")
++
++    def test_discount_boundaries_and_default(self):
++        self.assertEqual(unit_price("lamp"), unit_price("lamp", 0))
++        self.assertEqual(unit_price("lamp", 100), 0)
++        self.assertEqual(total([("lamp", 1)], 100), 0)
++        self.assertEqual(render([("lamp", 1)], 100), "TOTAL 0.00")
++
++    def test_discount_rounds_each_unit_down_before_quantity(self):
++        self.assertEqual(total([("pen", 3)], 1), 444)
++
++    def test_invalid_discount(self):
++        for discount in (-1, 101, 1.5, True, "10"):
++            with self.subTest(discount=discount):
++                with self.assertRaises(ValueError):
++                    unit_price("pen", discount)
++                with self.assertRaises(ValueError):
++                    total([("pen", 1)], discount)
++                with self.assertRaises(ValueError):
++                    render([("pen", 1)], discount)
++                with self.assertRaises(ValueError):
++                    total([], discount)
++                with self.assertRaises(ValueError):
++                    render([], discount)
++
++    def test_unknown_item_still_raises_key_error(self):
++        with self.assertRaises(KeyError):
++            unit_price("unknown")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()
