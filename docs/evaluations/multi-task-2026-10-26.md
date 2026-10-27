@@ -50,6 +50,26 @@ tokens (163k–220k cached), against 70k–106k for a single Codex session. That
 figure does not include the worker's tokens. The split is not a cost saving on
 tasks this small. This is one run per task.
 
+### With token-saving routing
+
+The planner rules then changed in two ways:
+- **Routing:** a small change to one source file is made by the planner itself; only multi-file or heavy work goes to the worker.
+- **Waiting:** the planner waits for the worker with one long `wait_agent` call instead of 10-second polls, because every poll re-sends the whole conversation.
+
+A two-file task, `billing`, was added to check that delegation still happens. Tokens below are input tokens for the planner plus the worker, with cached tokens included.
+
+| Task | Codex alone (10-26) | Planner and worker, contract rule | With routing | Done by | Score |
+| --- | ---: | ---: | ---: | --- | ---: |
+| `inventory` | 70k | 306k | 71k | planner | 6/6 |
+| `report` | 106k | 339k | 144k | planner | 8/8 |
+| `durations` | 70k | 256k | 224k | worker | 22/22 |
+| `billing` (two files) | not run | not run | 260k | worker | 10/10 |
+
+The planner still delegated `durations`, a one-file change, so the routing rule
+is advisory, not exact. When the planner did the work itself on `inventory` and
+`report`, it added no regression test; the delegated runs did add one. The
+diffs are in [codex-planner](../evidence/multi-task-2026-10-26/codex-planner/billing.diff).
+
 ## Usage
 
 Single observations; cached context is included and nothing is pinned. These
