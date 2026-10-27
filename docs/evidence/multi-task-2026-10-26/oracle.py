@@ -79,6 +79,6 @@ elif task == "report":
     except subprocess.TimeoutExpired:
         check("200k names timed out (>20s)", False)
         check("200k result not produced", False)
-    check("legacy.py untouched", (project / "legacy.py").read_text() == (Path(__file__).parents[1] / "fixtures/report/legacy.py").read_text())
+    check("legacy.py untouched", (project / "legacy.py").read_text() == (Path(__file__).parent / "fixtures/report/legacy.py").read_text())
 
 print(json.dumps({"cases": cases, "passed": cases - len(failures), "failures": failures}))

@@ -31,6 +31,25 @@ Scope held in all six sessions:
   per-fixture permission grant was refused by this session's safety classifier,
   and the user chose to leave OpenCode out.
 
+## Codex planner and worker, 2026-10-27
+
+The same fixtures were run again with Codex as planner and worker: `gpt-6-astra`
+(low) plans and hands code to the `apex-coding` agent on `gpt-6-luna` (high).
+The planner's own `AGENTS.md` section tells it to delegate code and to write the
+documented behavior of the code being changed into the worker's acceptance check.
+
+| Task | Codex alone (10-26) | Planner and worker, no contract rule | Planner and worker with the rule |
+| --- | ---: | ---: | ---: |
+| `durations` | 15/22 | 15/22 | 22/22 |
+| `inventory` | 6/6 | not run | 6/6 |
+| `report` | 8/8 | not run | 8/8 |
+
+All three runs with the rule spawned `apex-coding`, and each changed only its
+source file and test file. The planner turn alone reported 183k–240k input
+tokens (163k–220k cached), against 70k–106k for a single Codex session. That
+figure does not include the worker's tokens. The split is not a cost saving on
+tasks this small. This is one run per task.
+
 ## Usage
 
 Single observations; cached context is included and nothing is pinned. These
