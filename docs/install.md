@@ -2,8 +2,9 @@
 
 Apex is a set of instruction files plus a small Python toolchain. `install.py`
 links this source directory into the host's user directory and adds a marked
-routing block to the host's global instructions. Nothing is copied, so edits to
-the source take effect in the next session.
+routing block to the host's global instructions. Apart from the Codex agent
+files described below, nothing is copied, so edits to the source take effect in
+the next session.
 
 Requires Python 3. Run the commands from the repository root.
 
@@ -20,6 +21,18 @@ the source where you installed it. It adds a marked routing block to the global
 `AGENTS.md` while preserving existing text. Use `--codex-home /path` to select
 another user directory. Codex and Codex CLI share the package when they use the
 same user directory.
+
+It also writes the `apex-coding` and `apex-reviewer` custom agents into
+`agents/`. These are copies, not links: Codex lists a symlinked agent file but
+refuses to spawn it. Rerun `install` after pulling changes to refresh them; a
+file there that the installer did not write is left alone and stops the install.
+`apex-coding` runs on `gpt-6-luna` with high reasoning effort.
+
+To make Codex a planner that hands code to that worker, set the main model in
+`config.toml` yourself (for example `model = "gpt-6-astra"` with
+`model_reasoning_effort = "low"`). Then tell it in your own part of `AGENTS.md`,
+outside the Apex block, to delegate code changes to `apex-coding`. The installer
+leaves both alone.
 
 ## Claude Code (desktop and CLI)
 

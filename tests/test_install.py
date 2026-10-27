@@ -178,6 +178,19 @@ class InstallationTests(unittest.TestCase):
         self.assertEqual((self.home / "settings.json").read_text(), "{broken")
         self.assertFalse((self.home / "skills").exists())
 
+    def test_codex_install_replaces_an_old_agent_link_and_keeps_a_foreign_agent_file(self):
+        agents = self.home / "agents"
+        agents.mkdir(parents=True)
+        (agents / "apex-reviewer.toml").symlink_to(installer.CODEX_AGENTS / "apex-reviewer.toml")
+        installer.configure(self.home, "install", "codex")
+        self.assertFalse((agents / "apex-reviewer.toml").is_symlink())
+        self.assertIn("skill=linked", installer.configure(self.home, "status", "codex"))
+        installer.configure(self.home, "uninstall", "codex")
+        (agents / "apex-coding.toml").write_text('name = "apex-coding"\n')
+        with self.assertRaisesRegex(ValueError, "not owned"):
+            installer.configure(self.home, "install", "codex")
+        self.assertEqual((agents / "apex-coding.toml").read_text(), 'name = "apex-coding"\n')
+
     def test_codex_install_adds_hooks_and_reviewer_and_uninstall_keeps_user_hooks(self):
         import json
         user_hook = {"matcher": "Bash", "hooks": [{"type": "command", "command": "my-check"}]}
@@ -189,14 +202,18 @@ class InstallationTests(unittest.TestCase):
         guard = hooks["PreToolUse"][-1]
         self.assertEqual(guard["matcher"], "apply_patch")
         self.assertTrue(guard["hooks"][0]["command"].endswith(" guard codex"))
-        self.assertEqual((self.home / "agents/apex-reviewer.toml").resolve(),
-                         installer.CODEX_AGENTS / "apex-reviewer.toml")
+        for name in ("apex-reviewer.toml", "apex-coding.toml"):
+            agent = self.home / "agents" / name
+            # Codex refuses to spawn a symlinked agent file, so the installer writes a real copy.
+            self.assertFalse(agent.is_symlink(), name)
+            self.assertEqual(agent.read_bytes(), installer.MANAGED + (installer.CODEX_AGENTS / name).read_bytes())
         self.assertIn("hooks=present", installer.configure(self.home, "status", "codex"))
         installer.configure(self.home, "install", "codex")
         self.assertEqual(json.loads((self.home / "hooks.json").read_text())["hooks"], hooks)
         installer.configure(self.home, "uninstall", "codex")
         self.assertEqual(json.loads((self.home / "hooks.json").read_text()), {"hooks": {"PreToolUse": [user_hook]}})
         self.assertFalse((self.home / "agents/apex-reviewer.toml").exists())
+        self.assertFalse((self.home / "agents/apex-coding.toml").exists())
 
     def test_hosts_use_distinct_blocks(self):
         installer.configure(self.home, "install", "codex")

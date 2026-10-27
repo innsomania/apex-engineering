@@ -358,6 +358,15 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIn(f"description: {codex['description']}", front)
         self.assertEqual(codex["developer_instructions"].strip(), body.strip())
 
+    def test_codex_worker_matches_the_claude_worker_and_runs_on_luna_high(self):
+        import tomllib
+        agents = HOOK.parents[2]
+        codex = tomllib.loads((agents / "codex" / "agents" / "apex-coding.toml").read_text())
+        _, _, body = (agents / "claude-code" / "agents" / "apex-coding.md").read_text().split("---\n", 2)
+        self.assertEqual(codex["name"], "apex-coding")
+        self.assertEqual((codex["model"], codex["model_reasoning_effort"]), ("gpt-6-luna", "high"))
+        self.assertEqual(codex["developer_instructions"].strip(), body.strip())
+
     def test_unknown_host_is_rejected(self):
         result = subprocess.run([sys.executable, str(HOOK), "guard", "opencode"], input="{}",
                                 capture_output=True, text=True, timeout=60)
