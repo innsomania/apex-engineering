@@ -371,6 +371,11 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIn(f"description: {codex['description']}", front)
         self.assertEqual(codex["developer_instructions"].strip(), body.strip())
 
+    def test_claude_worker_runs_on_sonnet_medium(self):
+        front = (HOOK.parents[2] / "claude-code" / "agents" / "apex-coding.md").read_text().split("---\n", 2)[1]
+        self.assertIn("model: sonnet\n", front)
+        self.assertIn("effort: medium\n", front)
+
     def test_codex_worker_matches_the_claude_worker_and_runs_on_luna_high(self):
         import tomllib
         agents = HOOK.parents[2]
