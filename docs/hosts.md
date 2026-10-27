@@ -17,6 +17,14 @@ and [rules](https://docs.opencode.ai/docs/rules/) documentation. No Monocode-spe
 configuration or runtime compatibility is claimed. Portable files require a host
 that can read Markdown instructions and the referenced files.
 
+Scope is enforced in two layers. A pre-edit guard refuses a write outside
+`.apex/scope.json` before it happens, but it only sees the host's edit tools:
+`Write`/`Edit` in Claude Code and `apply_patch` in Codex. A shell command can
+still write anywhere; Codex workers often edit through `exec_command`. The Stop
+and SubagentStop check compares the whole tree with the turn's start, so any
+out-of-scope change, however it was made, keeps the turn or worker from
+finishing until it is reverted or the user approves it.
+
 ## Execution contract
 
 1. Read the user's task and relevant project rules; establish a bounded outcome.
