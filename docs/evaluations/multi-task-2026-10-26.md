@@ -70,6 +70,18 @@ is advisory, not exact. When the planner did the work itself on `inventory` and
 `report`, it added no regression test; the delegated runs did add one. The
 diffs are in [codex-planner](../evidence/multi-task-2026-10-26/codex-planner/billing.diff).
 
+### Self-written tests and the Codex reviewer, 2026-10-27
+
+The planner rule now also asks for a regression test when the planner makes a
+one-file change itself. `inventory` and `report` were run again: 6/6 and 8/8,
+each with its test file extended, at about 71k input tokens each.
+
+The Codex review gate was run live on `inventory` in a project with
+`.apex/scope.json`, `.apex/verify.json` and review on. The hook asked for a
+review, a separate `apex-reviewer` session ran and answered `APEX-REVIEW: PASS`,
+and the turn then finished with the oracle at 6/6. Before the agents were
+installed as copies, that reviewer could not be spawned under Codex at all.
+
 ## Usage
 
 Single observations; cached context is included and nothing is pinned. These
