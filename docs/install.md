@@ -53,6 +53,10 @@ Run this from your own terminal: a sandboxed Claude Code shell cannot write
 
 In Claude Code, Engineering can delegate bounded implementation to the
 `apex-coding` subagent when delegation is justified.
+`apex-coding` runs on Sonnet (`model: sonnet`) with medium effort, set in its
+frontmatter. To make the main session a planner, choose its model and effort in
+your own settings (for example Opus with low effort). Then tell it in your own
+part of `CLAUDE.md`, outside the Apex block, when to delegate.
 
 ## OpenCode and other hosts
 
