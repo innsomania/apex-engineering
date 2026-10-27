@@ -54,9 +54,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
+      # Linux covers every Python version; macOS minutes count ten times against
+      # the private-repo quota, so macOS runs the newest version only.
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest]
         python: ["3.11", "3.12", "3.13", "3.14"]
+        include:
+          - os: macos-latest
+            python: "3.14"
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
