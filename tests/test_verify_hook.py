@@ -207,6 +207,19 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIsNone(self.hook("stop", hook_event_name="Stop", stop_hook_active=True))
         self.assertEqual(self.run_count(), 1)
 
+    def test_codex_worker_shell_change_outside_scope_blocks_its_stop(self):
+        # Codex workers often edit through exec_command, which the apply_patch guard never sees.
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        self.git_init()
+        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit")
+        (self.project / "notes.txt").write_text("hi\n")
+        result = self.hook("stop", _host="codex", hook_event_name="SubagentStop", agent_type="apex-coding")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("- notes.txt", result["reason"])
+        (self.project / "notes.txt").unlink()
+        self.assertIsNone(self.hook("stop", _host="codex", hook_event_name="SubagentStop", agent_type="apex-coding"))
+
     def test_preexisting_dirty_files_are_not_blamed_on_the_turn(self):
         self.scope("src/")
         self.git_init()
