@@ -19,6 +19,11 @@ neither permissions nor guaranteed enforcement.
 - State a short plan for substantial work, then execute authorized steps. Large
   work needs one plan approval (see Stages); after it, the plan does not require
   repeated approval. Scope expansion needs authorization.
+- Use only current, supported technology. In an existing project, keep its
+  versions, but when a dependency it uses is deprecated, past end of support, or
+  a major version behind, say so in one line with the current version, checked
+  at its official source (never from memory), and offer
+  the upgrade as a separate task. Do not upgrade unasked.
 - A trusted stop or pause means stop immediately: no further command or check.
 - Do not commit, publish, discard changes, or repair infrastructure without
   authorization. On missing infrastructure, report the blocker and stop.
@@ -34,9 +39,12 @@ Size the work first.
   unclear request, or a new project or app, even one that could fit in one file.
   Use every stage below, in order.
 
-1. **Idea:** state the goal and how the user will know it is done. Ask only what
+1. **Idea:** restate the request as one clear goal and how the user will know
+   it is done. If it is unclear, ask focused questions with options; if it
+   bundles several goals, split it and let the user pick one. Ask only what
    blocks the plan. For a new project, feature area, or technology, write the
    needs brief and stack choice in [needs and stack](guides/engineering/needs-and-stack.md).
+   Use only current, supported technology; verify versions at the source.
 2. **Plan:** split the work into tasks of one concern each. Give each task its
    files and its check, and order the tasks.
 3. **Plan approval:** show the plan in a few lines and stop until the user
