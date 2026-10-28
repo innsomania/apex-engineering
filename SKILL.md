@@ -62,8 +62,10 @@ Write like an aircraft safety card: short, plain, one idea per line.
 ## Work loop
 
 1. Establish the intended behavior and one observable acceptance condition.
-   Reuse project instructions and evidence already in context. Read a linked
-   project note only when relevant; do not search personal folders for memory.
+   Reuse project instructions and evidence already in context. Start from the
+   project map in `CLAUDE.md`/`AGENTS.md` before searching; if large work has
+   no map, propose one ([memory](guides/engineering/project-memory.md)). Read a
+   linked project note only when relevant; do not search personal folders for memory.
 2. Inspect the affected entry point and direct tests. For a bug, reproduce the
    trigger or record concrete evidence before editing. Separate facts from
    assumptions. Check whether a directory is a Git repository before Git tools;

@@ -21,9 +21,16 @@ state: what the project is, the handful of paths that matter, the commands that
 build and test it, the conventions that are not obvious from the code, and a
 link to the cold note.
 
-It does not hold a file inventory, an architecture essay, a changelog, or
+Include a short map of where things are: the few files that matter and, for the
+central ones, the functions or constants that hold each responsibility. In a
+2026-10-28 trial on this repository, a 183-word map cut a question's input by
+60–70% and removed the wrong answer that searching produced (2 runs per case).
+It does not hold a full file inventory, an architecture essay, a changelog, or
 anything the code states plainly. A long instruction file spends on every turn
 what it was meant to save.
+
+Keep it true. When a change adds, moves, renames, or removes something the map
+names, update the map in the same change. A stale map is worse than none.
 
 ```markdown
 # <project>
@@ -32,6 +39,10 @@ what it was meant to save.
 
 - Stack: <language, framework, versions that matter>
 - Entry points: <the two or three paths to start from>
+
+## Where things are
+
+- `<path>`: <what it holds>; `<function>()` does <responsibility>.
 - Build: `<command>`
 - Test: `<command>`
 
