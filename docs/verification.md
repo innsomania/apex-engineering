@@ -79,7 +79,7 @@ mutations are caught (observed 2026-10-20):
 | the settings tamper check returns nothing | rewriting the verify config from a shell blocks the stop |
 | the remembered project root is ignored | deleting the Apex settings from a shell blocks the stop |
 | the vanished path of a rename is not recorded | a rename out of the scope blocks the stop |
-| the question lock ignored | edits are locked for a question turn |
+| the stop lock ignored | edits are locked for a stop turn |
 
 Record: [mutations-2026-10-20.json](evidence/mutations-2026-10-20.json).
 
