@@ -191,6 +191,30 @@ class VerifyHookTests(unittest.TestCase):
                            tool_input={"file_path": str(home / ".claude" / "settings.json")}, _home=str(home))
         self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
 
+    def test_stale_project_map_blocks_stop_until_updated(self):
+        (self.project / "src").mkdir()
+        (self.project / "src" / "app.py").write_text("def load():\n    return 1\n")
+        (self.project / "AGENTS.md").write_text("# App\n\n## Where things are\n- `src/app.py`: `load()` reads data.\n"
+                                                "\n## Notes\n- `.env` is optional.\n")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        (self.project / "src" / "app.py").rename(self.project / "src" / "data.py")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("`src/app.py` does not exist", result["reason"])
+        self.assertNotIn(".env", result["reason"])  # only the map section is checked
+        (self.project / "AGENTS.md").write_text("# App\n\n## Where things are\n- `src/data.py`: `load()` reads data.\n")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop", stop_hook_active=True))
+
+    def test_project_map_names_a_missing_function(self):
+        (self.project / "app.py").write_text("def load():\n    return 1\n")
+        (self.project / "CLAUDE.md").write_text("## Where things are\n- `app.py`: `fetch()` reads data.\n")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        (self.project / "app.py").write_text("def load():\n    return 2\n")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertIn("`fetch()` is not found", result["reason"])
+
     def test_plan_file_is_always_in_scope(self):
         # PLAN.md carries the task list and daily log for any change, whatever the scope allows.
         self.scope("src/")
