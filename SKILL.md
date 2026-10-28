@@ -47,8 +47,26 @@ Size the work first.
 6. **Final review:** compare the whole change with the user's request.
 
 Report progress in one line, for example
-`Plan ✅ · Coding 2/4 · Check ⏳ · Review –`. When the work will continue in
-another session, keep the same task list in `PLAN.md` at the project root.
+`Plan ✅ · Coding 2/4 · Check ⏳ · Review –`.
+
+Keep `PLAN.md` at the project root for large work, starting at plan approval,
+and in every session once it exists. It is always in scope. Update it as work
+moves; never rewrite past log lines:
+
+```markdown
+# Plan: <goal>
+Stage: Coding 2/4
+
+## Tasks
+- [x] 1. <task> (check: <command>)
+- [ ] 2. <task> (check: <command>)
+
+## Log
+- 2026-10-28: Plan approved. Task 1 done, check passed.
+```
+
+Add one log line per day of work, newest last. A line says what was done,
+what passed or failed, and what is next.
 
 ## Talking to the user
 

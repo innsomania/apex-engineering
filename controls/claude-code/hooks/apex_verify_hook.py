@@ -48,6 +48,7 @@ CONFIG = Path(".apex") / "verify.json"
 SCOPE = Path(".apex") / "scope.json"
 REVIEW = Path(".apex") / "review.json"
 REVIEWER = "apex-reviewer"
+PLAN = "PLAN.md"
 MAX_PROMPTS = 30
 MAX_PROMPT_CHARS = 16000
 MAX_ATTEMPTS = 3
@@ -84,6 +85,8 @@ def load_scope(root: Path) -> list[str] | None:
 
 
 def in_scope(relative: str, allow: Sequence[str]) -> bool:
+    if relative == PLAN:
+        return True  # the task list and daily log belong to every change
     for pattern in allow:
         if pattern.endswith("/"):
             if relative == pattern[:-1] or relative.startswith(pattern):
