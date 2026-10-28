@@ -111,6 +111,16 @@ Apex ships the worker agents; you choose the planner model.
 | Claude Code | e.g. Opus with low effort | `apex-coding` on Sonnet, medium effort |
 | Codex | e.g. `model = "gpt-6-astra"`, `model_reasoning_effort = "low"` in `config.toml` | `apex-coding` on `gpt-6-luna`, high effort |
 
+A Claude planner can also use Codex as its worker through
+`controls/apex_worker.py`, which runs one approved task in the Codex sandbox and
+writes the report, changed files and token usage to a JSON file:
+
+| Role | Model | For |
+| --- | --- | --- |
+| `heavy` | `gpt-6.1-sol`, medium | complex or multi-file work |
+| `focused` | `gpt-6-luna`, high | one clear feature, fix, or test |
+| `ui` | `gpt-6.1-terra`, medium | opening the app and checking screens and layouts |
+
 Tell the planner when to delegate in your own part of `CLAUDE.md` or
 `~/.codex/AGENTS.md`, outside the Apex block. Keep one model selected in the app
 (the planner) and write everything to it; it calls the worker itself.

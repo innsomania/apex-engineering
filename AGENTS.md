@@ -15,6 +15,7 @@ One engineering workflow (`SKILL.md` and `guides/`) plus runtime controls for Cl
 - Agents: `controls/claude-code/agents/*.md`, `controls/codex/agents/*.toml` (same instructions; a test keeps them equal).
 - `install.py`: links skill, writes hooks, copies Codex agents (`configure()`, `merge_hooks()`).
 - `run_apex.py`: starts a host session with the Apex prompt.
+- `controls/apex_worker.py`: runs one approved task through a Codex worker (`ROLES`: heavy/focused/ui) and writes a result JSON.
 - `tests/`: unittest suites (`tests/test_*.py`) and live/mutation runners (`tests/run_*.py`).
 
 ## Checks
