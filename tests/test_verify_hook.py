@@ -191,6 +191,16 @@ class VerifyHookTests(unittest.TestCase):
                            tool_input={"file_path": str(home / ".claude" / "settings.json")}, _home=str(home))
         self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
 
+    def test_plan_file_is_always_in_scope(self):
+        # PLAN.md carries the task list and daily log for any change, whatever the scope allows.
+        self.scope("src/")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        _, edit = self.prompt_then_edit("PLAN.md guncelle", target=str(self.project / "PLAN.md"))
+        self.assertIsNone(edit)
+        (self.project / "PLAN.md").write_text("# Plan\n")
+        self.assertNotIn("PLAN.md", json.dumps(self.hook("stop", hook_event_name="Stop") or {}))
+
     def test_shell_change_outside_scope_blocks_stop(self):
         self.scope("src/")
         (self.project / "src").mkdir()
