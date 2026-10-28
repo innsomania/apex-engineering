@@ -28,13 +28,15 @@ neither permissions nor guaranteed enforcement.
 ## Stages
 
 Size the work first.
-- **Small:** one source file and a clear request. Go straight to coding, check
-  and review; no plan, no approval.
-- **Large:** more than one source file, a new module, or an unclear request.
+- **Small:** a change to one existing source file, with a clear request. Go
+  straight to coding, check and review; no plan, no approval.
+- **Large:** everything else: more than one source file, a new module, an
+  unclear request, or a new project or app, even one that could fit in one file.
   Use every stage below, in order.
 
 1. **Idea:** state the goal and how the user will know it is done. Ask only what
-   blocks the plan.
+   blocks the plan. For a new project, feature area, or technology, write the
+   needs brief and stack choice in [needs and stack](guides/engineering/needs-and-stack.md).
 2. **Plan:** split the work into tasks of one concern each. Give each task its
    files and its check, and order the tasks.
 3. **Plan approval:** show the plan in a few lines and stop until the user

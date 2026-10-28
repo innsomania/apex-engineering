@@ -10,6 +10,7 @@ complete knowledge or proven expertise in every domain.
 | Task signal | Read | Expected result |
 | --- | --- | --- |
 | Starting in a project, or finishing work in one | [Project memory](project-memory.md) | Prior understanding reused rather than re-derived, and durable findings recorded |
+| New project, feature area, or technology choice | [Needs and stack](needs-and-stack.md) | Needs brief and a sourced, versioned stack choice |
 | Ambiguous request, existing system, alternatives, planning | [Analysis and decisions](analysis-and-decisions.md) | Evidence, constraints, decision, bounded handoff |
 | Module boundaries, algorithms, APIs, databases, distributed systems | [Architecture and data](architecture-and-data.md) | Explicit invariants, contracts, ownership, failure behavior |
 | Web, mobile, native behavior, accessibility, performance | [Application engineering](application-engineering.md) | Platform-aware behavior and measurable verification |
