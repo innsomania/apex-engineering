@@ -81,8 +81,8 @@ MUTATIONS: list[dict[str, str]] = [
         "new": "pass",
     },
     {
-        "gate": "question lock",
-        "expect_step": "edits are locked for a question turn",
+        "gate": "stop lock",
+        "expect_step": "edits are locked for a stop turn",
         "old": "    if lock and not claude_own_file(path):",
         "new": "    if False and not claude_own_file(path):",
     },

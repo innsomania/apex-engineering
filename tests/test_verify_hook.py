@@ -151,8 +151,8 @@ class VerifyHookTests(unittest.TestCase):
             result = self.patch(*headers)
             self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", headers)
 
-    def test_codex_question_turn_refuses_patches(self):
-        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="Neden async kullandik?")
+    def test_codex_stop_turn_refuses_patches(self):
+        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="dur")
         result = self.patch("Add File: notes.txt")
         self.assertIn("blocked for this turn", result["hookSpecificOutput"]["permissionDecisionReason"])
 
@@ -520,14 +520,16 @@ class VerifyHookTests(unittest.TestCase):
                          tool_input={"file_path": target or str(self.project / "value.txt")})
         return result, edit
 
-    def test_question_and_stop_messages_lock_edits_for_that_turn(self):
-        for prompt, kind in (("bu aynisi mi", "question"), ("Neden async kullandik?", "question"),
-                             ("dur", "stop"), ("ne yapıyorsun ya", "stop"), ("kafayı yiyeceğim", "stop")):
+    def test_stop_messages_lock_edits_and_questions_only_add_a_note(self):
+        for prompt in ("dur", "ne yapıyorsun ya", "kafayı yiyeceğim"):
             result, edit = self.prompt_then_edit(prompt)
             self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
             self.assertIn("blocked for this turn", result["hookSpecificOutput"]["additionalContext"], prompt)
-            expected = "wants you to stop" if kind == "stop" else "asked a question"
-            self.assertIn(expected, edit["hookSpecificOutput"]["permissionDecisionReason"], prompt)
+            self.assertIn("wants you to stop", edit["hookSpecificOutput"]["permissionDecisionReason"], prompt)
+        for prompt in ("bu aynisi mi", "Neden async kullandik?", "Sana her seyi kontrol et dedim mal misin ?", "yani ?"):
+            result, edit = self.prompt_then_edit(prompt)
+            self.assertIsNone(edit, prompt)
+            self.assertIn("reads like a question", result["hookSpecificOutput"]["additionalContext"], prompt)
         for prompt in ("Evet, bu 4 maddeyi uygula.", "Bu dalı main'e birleştir.", "durumu düzelt"):
             result, edit = self.prompt_then_edit(prompt)
             self.assertIsNone(edit, prompt)
@@ -540,7 +542,7 @@ class VerifyHookTests(unittest.TestCase):
             self.assertIn("asked for a status", result["hookSpecificOutput"]["additionalContext"], prompt)
         for prompt in ("Bu plan tamam mi?", "Apex'in durumu nedir ?"):
             result, edit = self.prompt_then_edit(prompt)
-            self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
+            self.assertIn("reads like a question", result["hookSpecificOutput"]["additionalContext"], prompt)
 
     def test_work_requests_phrased_as_questions_or_naming_stop_are_not_locked(self):
         sys.path.insert(0, str(HOOK.parent))
@@ -565,12 +567,17 @@ class VerifyHookTests(unittest.TestCase):
                  "Halen onarlarsa diyor ya sen kafayı mı yedin ?": None,
                  "Allahin belasi halen yazi var birde neden sürekli hata dikiyor he ?": None,
                  "Senin sülaleni sikiyim neden islerini yapmadın orospu evladı": None,
-                 "orospu çocuğu": "stop", "salak misin": "stop", "amk bu ne": "stop"}
+                 # Abuse alone is frustration with the work, not a stop command.
+                 "orospu çocuğu": None, "salak misin": None, "amk bu ne": None,
+                 # A 2026-10-29 Codex session: the go-ahead and the pressed request must not halt work.
+                 "dostum baslatsana neden bana soruyorsun ?": None,
+                 "dostum essek misin ? Yapsana aq": None, "Salak misiin ?": None,
+                 "Sana her seyi kontrol et dedim mal misin ?": "question", "yani ?": "question"}
         for prompt, kind in cases.items():
             self.assertEqual(apex_verify_hook.classify(prompt), kind, prompt)
 
     def test_plan_approval_lifts_the_turn_lock(self):
-        _result, edit = self.prompt_then_edit("Neden async kullandik, düzeltir misin?")
+        _result, edit = self.prompt_then_edit("dur")
         self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIsNone(self.hook("unlock", hook_event_name="PostToolUse", tool_name="ExitPlanMode"))
         self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
@@ -578,7 +585,7 @@ class VerifyHookTests(unittest.TestCase):
 
     def test_shell_change_during_locked_turn_is_reported(self):
         self.git_init()
-        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="neden boş?")
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="dur")
         self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
         (self.project / "value.txt").write_text("changed by shell\n")
         result = self.hook("stop", hook_event_name="Stop")
@@ -588,7 +595,7 @@ class VerifyHookTests(unittest.TestCase):
         outside = Path(self.temp.name) / "plain"
         outside.mkdir()
         home = Path(self.temp.name) / "home"
-        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="ne oldu?", cwd=str(outside))
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="dur", cwd=str(outside))
         denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit", cwd=str(outside),
                            tool_input={"file_path": str(outside / "a.txt")})
         self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
@@ -600,7 +607,7 @@ class VerifyHookTests(unittest.TestCase):
         result = self.hook("baseline", hook_event_name="UserPromptSubmit",
                            cwd=self.temp.name, prompt="neden boş?")
         context = result["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("asked a question", context)
+        self.assertIn("reads like a question", context)
         self.assertIn("NOT active", context)
 
     def test_guard_denies_only_the_verify_config(self):

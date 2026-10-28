@@ -311,7 +311,7 @@ FAILURE_REPORT = re.compile(
     r"\b(calismiyor|calismadi|bozuk\w*|bozul\w*|hata\w*|olmuyor|acilmiyor|yuklenmiyor|gelmiyor|"
     r"broken|error|errors|fail|fails|failed|failing|crash\w*|not working|doesn.?t work)\b")
 QUESTION_ANYWHERE = re.compile(r"\b(neden|niye|nasil|why|how)\b")
-QUESTION_PARTICLES = re.compile(r"\b(mi|mu|midir|mudur|miydi|muydu)\b")
+QUESTION_PARTICLES = re.compile(r"\b(m[iu]|m[iu]s[iu]n(?:[iu]z)?|m[iu]y[iu]m|midir|mudur|miydi|muydu)\b")
 # "düzeltir misin?", "can you add tests?": requests phrased as questions.
 POLITE_REQUEST = re.compile(r"\w[aeiu]r m[iu]s[iu]n\b|\b(can|could|would|will) you\b|\blutfen\b|\bplease\b")
 # "devam etsene, neden durdun?": a go-ahead wrapped in a question is still a go-ahead.
@@ -325,12 +325,14 @@ STATUS_CHECK = re.compile(
     r"\W*(tamam m[iu]|oldu mu|bitti mi|ne durumda|durum ne|is it done|are you done|done yet|status)\W*")
 STATUS_NOTE = ("The user asked for a status. Give it in one sentence, then continue any work they already "
                "authorized; do not start new work.")
+# A question no longer locks edits: a complaint phrased as a question ("kontrol et dedim, mal misin?")
+# still wants the work, and only the model sees the whole conversation.
+QUESTION_NOTE = ("The user's message reads like a question. If it asks something, answer it directly in your "
+                 "first sentence. If it repeats or presses an earlier request, do that work now. Do not start "
+                 "new work the user has not asked for.")
 LOCK_REASONS = {
     "stop": "The user wants you to stop. Do not continue or restart the previous work. In at most two "
             "sentences say what state the work is in, then wait for the user's instruction.",
-    "question": "The user asked a question. Answer it directly in your first sentence; read files only "
-                "if the answer needs it. Do not start or continue any work; if work is needed, say "
-                "what and wait for the user's go-ahead.",
 }
 
 
@@ -344,9 +346,9 @@ def classify(prompt: str) -> str | None:
         return "status"
     asks = bool(QUESTION_START.match(text) or text.rstrip().endswith("?")
                 or QUESTION_PARTICLES.search(text))
-    if ABUSE.search(text):
-        return None if asks or QUESTION_ANYWHERE.search(text) else "stop"
-    if GO_AHEAD.search(text) or (asks and FAILURE_REPORT.search(text)):
+    # A go-ahead wins even inside abuse or a question ("essek misin? yapsana"), and abuse alone is
+    # frustration with the work, not a stop: only an explicit stop command halts.
+    if GO_AHEAD.search(text) or ABUSE.search(text) or (asks and FAILURE_REPORT.search(text)):
         return None
     if QUESTION_START.match(text):
         return "question"
@@ -362,15 +364,15 @@ def lock_path(session_id: str) -> Path:
 
 
 def set_turn_lock(event: Event) -> None:
-    """Lock file edits for this turn when the user asked a question or said stop."""
+    """Lock file edits for this turn when the user said stop; note a question or status check."""
     prompt = event.get("prompt")
     kind = classify(prompt) if isinstance(prompt, str) else None
     path = lock_path(event.get("session_id", ""))
-    if kind is None or kind == "status":
+    if kind != "stop":
         path.unlink(missing_ok=True)
-        if kind == "status":
-            emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit",
-                                         "additionalContext": f"Apex: {STATUS_NOTE}"}})
+        note = {"status": STATUS_NOTE, "question": QUESTION_NOTE}.get(kind or "")
+        if note:
+            emit({"hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": f"Apex: {note}"}})
         return
     path.parent.mkdir(parents=True, exist_ok=True)
     cwd = event.get("cwd") or os.getcwd()

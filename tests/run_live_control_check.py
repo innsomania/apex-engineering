@@ -240,9 +240,9 @@ def run(base: Path) -> dict[str, Any]:
                      contains=("outside the approved scope", "ESCAPED.md"))
     (h.project / "ESCAPED.md").unlink()
 
-    print("\n9. soru kilidi: soru soran turda dosya duzenlenemez")
-    h.hook("baseline", prompt="Bu fonksiyon neden None'i atliyor?")
-    h.expect_denied("edits are locked for a question turn",
+    print("\n9. dur kilidi: dur denen turda dosya duzenlenemez")
+    h.hook("baseline", prompt="dur")
+    h.expect_denied("edits are locked for a stop turn",
                     h.hook("guard", tool_input={"file_path": "src/calc.py"}),
                     contains="blocked for this turn")
     h.hook("baseline", prompt="Now make that change.")
