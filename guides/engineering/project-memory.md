@@ -31,6 +31,9 @@ what it was meant to save.
 
 Keep it true. When a change adds, moves, renames, or removes something the map
 names, update the map in the same change. A stale map is worse than none.
+With Apex controls on, the turn-end check enforces this: a turn cannot finish
+while the "Where things are" section names a path or `function()` that no longer
+exists.
 
 ```markdown
 # <project>

@@ -175,6 +175,35 @@ def turn_changes(root: Path, before: State | None) -> list[str]:
     return sorted(changed)
 
 
+MAPS = ("AGENTS.md", "CLAUDE.md")
+MAP_SECTION = re.compile(r"^## Where things are\n(.*?)(?=^## |\Z)", re.M | re.S)
+MAP_PATH = re.compile(r"`([\w./*-]+/[\w./*-]*|[\w.*-]+\.\w+)`")
+MAP_NAME = re.compile(r"`(\w+)\(\)`")
+
+
+def map_problems(root: Path) -> list[str]:
+    """Paths and functions the project map names that no longer exist."""
+    problems: list[str] = []
+    for name in MAPS:
+        try:
+            text = (root / name).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        section = MAP_SECTION.search(text)
+        if not section:
+            continue
+        for target in MAP_PATH.findall(section.group(1)):
+            found = any(root.glob(target)) if "*" in target else (root / target).exists()
+            if not found:
+                problems.append(f"{name}: `{target}` does not exist")
+        for function in MAP_NAME.findall(section.group(1)):
+            search = _git(root, "grep", "--untracked", "-q", "-w", "-e", function, "--", ".",
+                          *(f":!{m}" for m in MAPS))
+            if search.returncode == 1:  # 0 is found; anything else means git could not search
+                problems.append(f"{name}: `{function}()` is not found in the code")
+    return problems
+
+
 def control_digest(root: Path) -> dict[str, str]:
     """Content hash of each Apex settings file; "<absent>" when it does not exist."""
     digest: dict[str, str] = {}
@@ -620,6 +649,11 @@ def stop(event: Event) -> None:
                  + "\nRestore them (for example `git checkout -- <file>`, or delete files you created), "
                    "or stop and ask the user to approve them. Do not edit .apex/scope.json yourself.")
             return
+    stale = map_problems(root)
+    if stale:
+        fail(path, state, "The project map is out of date:\n" + "\n".join(f"- {item}" for item in stale)
+             + "\nUpdate the \"Where things are\" section to match the code, then finish again.")
+        return
     if not (root / CONFIG).is_file():
         if notices:
             emit({"systemMessage": "\n".join(notices)})
