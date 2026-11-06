@@ -69,6 +69,12 @@ class VerifyHookTests(unittest.TestCase):
         self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
         self.assertEqual(self.run_count(), 0)
 
+    def test_read_only_prompt_does_not_run_verify(self):
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="Explain what this project does")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+        self.assertEqual(self.run_count(), 0)
+
     def test_failing_change_blocks_then_releases_after_limit(self):
         self.git_init()
         self.hook("baseline", hook_event_name="UserPromptSubmit")
@@ -151,8 +157,8 @@ class VerifyHookTests(unittest.TestCase):
             result = self.patch(*headers)
             self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny", headers)
 
-    def test_codex_question_turn_refuses_patches(self):
-        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="Neden async kullandik?")
+    def test_codex_stop_turn_refuses_patches(self):
+        self.hook("baseline", _host="codex", hook_event_name="UserPromptSubmit", prompt="dur")
         result = self.patch("Add File: notes.txt")
         self.assertIn("blocked for this turn", result["hookSpecificOutput"]["permissionDecisionReason"])
 
@@ -435,6 +441,7 @@ class VerifyHookTests(unittest.TestCase):
 
     def test_review_fail_blocks_with_findings(self):
         self.review_ready()
+        self.hook("stop", hook_event_name="Stop")
         self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
                   agent_transcript_path=self.reviewer_transcript(
                       ("text", "APEX-REVIEW: PASS"),  # an earlier draft must not count
@@ -452,6 +459,7 @@ class VerifyHookTests(unittest.TestCase):
         self.git_init()
         self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
         (self.project / "src" / "a.txt").write_text("x\n")
+        self.hook("stop", hook_event_name="Stop")
         absent = str(Path(self.temp.name) / "no-such-transcript.jsonl")
         self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
                   agent_transcript_path=absent, last_assistant_message="Looks right.\n\nAPEX-REVIEW: PASS")
@@ -464,6 +472,7 @@ class VerifyHookTests(unittest.TestCase):
         self.git_init()
         self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
         (self.project / "src" / "a.txt").write_text("x\n")
+        self.hook("stop", hook_event_name="Stop")
         absent = str(Path(self.temp.name) / "no-such-transcript.jsonl")
         self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
                   agent_transcript_path=absent, last_assistant_message="- a.txt: extra\n\nAPEX-REVIEW: FAIL")
@@ -485,6 +494,7 @@ class VerifyHookTests(unittest.TestCase):
 
     def test_missing_verdict_counts_as_failure(self):
         self.review_ready()
+        self.hook("stop", hook_event_name="Stop")
         self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
                   agent_transcript_path=self.reviewer_transcript(("text", "Looks fine to me.")))
         self.assertIn("no APEX-REVIEW verdict", self.hook("stop", hook_event_name="Stop")["reason"])
@@ -499,12 +509,46 @@ class VerifyHookTests(unittest.TestCase):
         self.assertEqual(self.run_count(), 1)  # the verified tree is not checked twice
 
     def test_ignored_review_request_is_reported_to_the_user(self):
-        self.review_ready()
+        # Verify passes, but review is required and ignored 3 times
+        (self.project / ".apex" / "review.json").write_text("{}")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
+        (self.project / "src").mkdir()
+        (self.project / "src" / "a.txt").write_text("x\n")
         for _ in range(3):
-            self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
-        result = self.hook("stop", hook_event_name="Stop")
-        self.assertNotIn("decision", result)
-        self.assertIn("unreviewed", result["systemMessage"])
+            result = self.hook("stop", hook_event_name="Stop")
+            self.assertEqual(result["decision"], "block")
+            self.assertIn('subagent_type "apex-reviewer"', result["reason"])
+        # The 4th and later requests still block, with the delegation instructions.
+        for _ in range(2):
+            result = self.hook("stop", hook_event_name="Stop")
+            self.assertEqual(result["decision"], "block")
+            self.assertIn('subagent_type "apex-reviewer"', result["reason"])
+            self.assertIn("stays blocked until the reviewer passes", result["reason"])
+        # A reviewer verdict that arrives late still records, and then the turn may end.
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  agent_transcript_path=self.reviewer_transcript(("tool", "No deviations.\nAPEX-REVIEW: PASS")))
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop", stop_hook_active=True))
+
+    def test_verify_command_runs_in_a_shell(self):
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        (self.project / "value.txt").write_text("changed\n")
+        python = shlex.quote(sys.executable)
+        verify = self.project / ".apex" / "verify.json"
+        for command, blocks in ((f"{python} -c 'import sys; sys.exit(0)' && false", True),
+                                (f"FOO=1 {python} -c 'import os, sys; sys.exit(0 if os.environ.get(\"FOO\") == \"1\" else 1)'", False),
+                                ("apex-no-such-command-xyz", True)):
+            verify.write_text(json.dumps({"command": command, "timeout": 60}))
+            # A new prompt resets the baseline so each command runs against a changed tree.
+            self.hook("baseline", hook_event_name="UserPromptSubmit", prompt=command)
+            (self.project / "value.txt").write_text(f"changed by {command}\n")
+            result = self.hook("stop", hook_event_name="Stop")
+            if blocks:
+                self.assertEqual(result["decision"], "block", command)
+                self.assertIn("exited with", result["reason"], command)
+            else:
+                self.assertIsNone(result, command)
 
     def test_controls_in_a_subfolder_trigger_a_warning(self):
         parent = Path(self.temp.name)
@@ -520,14 +564,16 @@ class VerifyHookTests(unittest.TestCase):
                          tool_input={"file_path": target or str(self.project / "value.txt")})
         return result, edit
 
-    def test_question_and_stop_messages_lock_edits_for_that_turn(self):
-        for prompt, kind in (("bu aynisi mi", "question"), ("Neden async kullandik?", "question"),
-                             ("dur", "stop"), ("ne yapıyorsun ya", "stop"), ("kafayı yiyeceğim", "stop")):
+    def test_stop_messages_lock_edits_and_questions_only_add_a_note(self):
+        for prompt in ("dur", "ne yapıyorsun ya", "kafayı yiyeceğim"):
             result, edit = self.prompt_then_edit(prompt)
             self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
             self.assertIn("blocked for this turn", result["hookSpecificOutput"]["additionalContext"], prompt)
-            expected = "wants you to stop" if kind == "stop" else "asked a question"
-            self.assertIn(expected, edit["hookSpecificOutput"]["permissionDecisionReason"], prompt)
+            self.assertIn("wants you to stop", edit["hookSpecificOutput"]["permissionDecisionReason"], prompt)
+        for prompt in ("bu aynisi mi", "Neden async kullandik?", "Sana her seyi kontrol et dedim mal misin ?", "yani ?"):
+            result, edit = self.prompt_then_edit(prompt)
+            self.assertIsNone(edit, prompt)
+            self.assertIn("reads like a question", result["hookSpecificOutput"]["additionalContext"], prompt)
         for prompt in ("Evet, bu 4 maddeyi uygula.", "Bu dalı main'e birleştir.", "durumu düzelt"):
             result, edit = self.prompt_then_edit(prompt)
             self.assertIsNone(edit, prompt)
@@ -540,7 +586,7 @@ class VerifyHookTests(unittest.TestCase):
             self.assertIn("asked for a status", result["hookSpecificOutput"]["additionalContext"], prompt)
         for prompt in ("Bu plan tamam mi?", "Apex'in durumu nedir ?"):
             result, edit = self.prompt_then_edit(prompt)
-            self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny", prompt)
+            self.assertIn("reads like a question", result["hookSpecificOutput"]["additionalContext"], prompt)
 
     def test_work_requests_phrased_as_questions_or_naming_stop_are_not_locked(self):
         sys.path.insert(0, str(HOOK.parent))
@@ -565,12 +611,17 @@ class VerifyHookTests(unittest.TestCase):
                  "Halen onarlarsa diyor ya sen kafayı mı yedin ?": None,
                  "Allahin belasi halen yazi var birde neden sürekli hata dikiyor he ?": None,
                  "Senin sülaleni sikiyim neden islerini yapmadın orospu evladı": None,
-                 "orospu çocuğu": "stop", "salak misin": "stop", "amk bu ne": "stop"}
+                 # Abuse alone is frustration with the work, not a stop command.
+                 "orospu çocuğu": None, "salak misin": None, "amk bu ne": None,
+                 # A 2026-10-29 Codex session: the go-ahead and the pressed request must not halt work.
+                 "dostum baslatsana neden bana soruyorsun ?": None,
+                 "dostum essek misin ? Yapsana aq": None, "Salak misiin ?": None,
+                 "Sana her seyi kontrol et dedim mal misin ?": "question", "yani ?": "question"}
         for prompt, kind in cases.items():
             self.assertEqual(apex_verify_hook.classify(prompt), kind, prompt)
 
     def test_plan_approval_lifts_the_turn_lock(self):
-        _result, edit = self.prompt_then_edit("Neden async kullandik, düzeltir misin?")
+        _result, edit = self.prompt_then_edit("dur")
         self.assertEqual(edit["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIsNone(self.hook("unlock", hook_event_name="PostToolUse", tool_name="ExitPlanMode"))
         self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
@@ -578,7 +629,7 @@ class VerifyHookTests(unittest.TestCase):
 
     def test_shell_change_during_locked_turn_is_reported(self):
         self.git_init()
-        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="neden boş?")
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="dur")
         self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
         (self.project / "value.txt").write_text("changed by shell\n")
         result = self.hook("stop", hook_event_name="Stop")
@@ -588,7 +639,7 @@ class VerifyHookTests(unittest.TestCase):
         outside = Path(self.temp.name) / "plain"
         outside.mkdir()
         home = Path(self.temp.name) / "home"
-        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="ne oldu?", cwd=str(outside))
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="dur", cwd=str(outside))
         denied = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit", cwd=str(outside),
                            tool_input={"file_path": str(outside / "a.txt")})
         self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
@@ -600,7 +651,7 @@ class VerifyHookTests(unittest.TestCase):
         result = self.hook("baseline", hook_event_name="UserPromptSubmit",
                            cwd=self.temp.name, prompt="neden boş?")
         context = result["hookSpecificOutput"]["additionalContext"]
-        self.assertIn("asked a question", context)
+        self.assertIn("reads like a question", context)
         self.assertIn("NOT active", context)
 
     def test_guard_denies_only_the_verify_config(self):
@@ -609,6 +660,234 @@ class VerifyHookTests(unittest.TestCase):
         self.assertEqual(denied["hookSpecificOutput"]["permissionDecision"], "deny")
         self.assertIsNone(self.hook("guard", hook_event_name="PreToolUse", tool_name="Write",
                                     tool_input={"file_path": str(self.project / "value.txt")}))
+
+    def test_explicit_stop_phrases_and_task_mentions(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        for prompt in ("pause", "wait", "do not continue", "Lütfen artık bu işi durdur",
+                       "Please stop working on this task", "Lütfen artık bekle"):
+            self.assertEqual(module.classify(prompt), "stop", prompt)
+        for prompt in ("Fix the Stop hook", "Stop hook hatasini duzelt", "Explain the stop now button"):
+            self.assertIsNone(module.classify(prompt), prompt)
+
+    def test_stop_lock_skips_verify_after_shell_write(self):
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="Fix value")
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="Lütfen artık bu işi durdur")
+        (self.project / "value.txt").write_text("broken\n")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(self.run_count(), 0)
+        self.assertNotIn("decision", result)
+
+    def test_review_pass_expires_when_files_change_during_review(self):
+        self.review_ready()
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+        (self.project / "extra.txt").write_text("changed during review\n")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  last_assistant_message="APEX-REVIEW: PASS")
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+
+    def test_unsolicited_pass_does_not_approve_review(self):
+        self.review_ready()
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  last_assistant_message="APEX-REVIEW: PASS")
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+
+    def test_revised_prompt_invalidates_old_approval_for_restored_tree(self):
+        self.review_ready()
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  last_assistant_message="APEX-REVIEW: PASS")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+        approved = (self.project / "extra.txt").read_text()
+        (self.project / "extra.txt").write_text("temporary tree")
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="Revised request: keep only requested file.")
+        (self.project / "extra.txt").write_text(approved)
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+
+    def test_new_read_only_prompt_after_failed_review_skips_verify(self):
+        self.review_ready()
+        self.assertEqual(self.hook("stop", hook_event_name="Stop")["decision"], "block")
+        runs = self.run_count()
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  last_assistant_message="APEX-REVIEW: FAIL")
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="Explain the project structure")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+        self.assertEqual(self.run_count(), runs)
+
+    def test_reviewer_instruction_history_is_not_truncated(self):
+        self.git_init()
+        prompts = [f"Message {number}" for number in range(35)]
+        prompts[-1] += "x" * 17000 + " DO NOT DELETE DATA"
+        for prompt in prompts:
+            self.hook("baseline", hook_event_name="UserPromptSubmit", prompt=prompt)
+        instruction = next(self.state.glob("*.instructions.md")).read_text()
+        self.assertIn("Message 0", instruction)
+        self.assertIn("Message 34", instruction)
+        self.assertIn("DO NOT DELETE DATA", instruction)
+        self.assertIn(prompts[-1], instruction)
+        self.assertEqual(instruction.count("## Message "), 35)
+
+    def test_untracked_symlink_target_is_tracked(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.git_init()
+        (self.project / "a").write_text("same")
+        (self.project / "b").write_text("same")
+        (self.project / "link").symlink_to("a")
+        before = module.snapshot(self.project)
+        before_fingerprint = module.fingerprint(self.project)
+        (self.project / "link").unlink()
+        (self.project / "link").symlink_to("b")
+        self.assertNotEqual(before_fingerprint, module.fingerprint(self.project))
+        self.assertIn("link", module.turn_changes(self.project, before))
+
+    def test_git_untracked_and_dangling_symlink_targets_are_tracked(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        self.git_init()
+        (self.project / "a").write_text("same")
+        (self.project / "b").write_text("same")
+        (self.project / "link").symlink_to("a")
+        before = module.snapshot(self.project)
+        self.assertIsNotNone(module.fingerprint(self.project))
+        (self.project / "link").unlink()
+        (self.project / "link").symlink_to("b")
+        self.assertIn("link", module.turn_changes(self.project, before))
+        (self.project / "link").unlink()
+        (self.project / "link").symlink_to("missing-target")
+        dangling = module.snapshot(self.project)
+        (self.project / "link").unlink()
+        (self.project / "link").symlink_to("elsewhere")
+        self.assertIn("link", module.turn_changes(self.project, dangling))
+
+    def test_non_git_snapshot_records_directory_symlinks_without_following(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        external = Path(self.temp.name) / "outside"
+        external.mkdir()
+        (external / "secret").write_text("do not hash through link")
+        (self.project / "dir-link").symlink_to(external, target_is_directory=True)
+        before = module.snapshot(self.project)
+        self.assertIn("dir-link", before["files"])
+        self.assertNotIn("dir-link/secret", before["files"])
+
+    def test_review_completes_for_unchanged_non_git_project(self):
+        (self.project / ".apex" / "review.json").write_text("{}")
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="add a file")
+        (self.project / "new.txt").write_text("requested\n")
+        request = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(request["decision"], "block")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  last_assistant_message="APEX-REVIEW: PASS")
+        self.assertIsNone(self.hook("stop", hook_event_name="Stop"))
+
+    def test_new_prompt_invalidates_cached_review_and_stale_failure(self):
+        self.review_ready()
+        self.hook("stop", hook_event_name="Stop")
+        self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
+                  last_assistant_message="APEX-REVIEW: FAIL")
+        (self.project / "extra.txt").unlink()
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="Keep the implementation; revised request.")
+        (self.project / "extra.txt").write_text("updated\n")
+        result = self.hook("stop", hook_event_name="Stop")
+        self.assertEqual(result["decision"], "block")
+        self.assertIn("Instructions file:", result["reason"])
+
+    def test_coding_worker_stop_lock_skips_verify_and_block(self):
+        self.git_init()
+        (self.project / ".apex" / "scope.json").write_text('{"allow": ["value.txt"]}')
+        self.hook("baseline", hook_event_name="UserPromptSubmit", prompt="stop")
+        (self.project / "value.txt").write_text("broken\n")
+        result = self.hook("stop", hook_event_name="SubagentStop", agent_type="apex-coding")
+        self.assertEqual(self.run_count(), 0)
+        self.assertNotIn("decision", result or {})
+
+    # ---- Missing coverage tests ----
+
+    def test_load_scope_rejects_double_star_pattern(self):
+        (self.project / ".apex" / "scope.json").write_text(json.dumps({"allow": ["src/**"]}))
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with self.assertRaises(ValueError) as cm:
+            module.load_scope(self.project)
+        self.assertIn("**", str(cm.exception))
+
+    def test_load_scope_rejects_dotdot_pattern(self):
+        (self.project / ".apex" / "scope.json").write_text(json.dumps({"allow": ["src/../etc"]}))
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        with self.assertRaises(ValueError) as cm:
+            module.load_scope(self.project)
+        self.assertIn("..", str(cm.exception))
+
+    def test_load_scope_accepts_valid_patterns(self):
+        (self.project / ".apex" / "scope.json").write_text(json.dumps({"allow": ["src/", "tests/*.py", "README.md"]}))
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        allow = module.load_scope(self.project)
+        self.assertEqual(set(allow), {"src/", "tests/*.py", "README.md"})
+
+    def test_guard_blocks_symlink_escape_to_outside_scope(self):
+        """Symlink inside scope pointing outside should be blocked by guard."""
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        # Create a symlink inside src/ that points outside
+        outside = Path(self.temp.name) / "outside"
+        outside.mkdir()
+        (outside / "secret.txt").write_text("secret\n")
+        (self.project / "src" / "link").symlink_to(outside / "secret.txt")
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        # Try to edit the symlink target (which is outside scope)
+        result = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
+                           tool_input={"file_path": str(outside / "secret.txt")})
+        self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny")
+
+    def test_guard_blocks_path_traversal_via_relative_path(self):
+        """Relative paths like src/../etc/passwd should be blocked."""
+        self.scope("src/")
+        (self.project / "src").mkdir()
+        self.git_init()
+        self.hook("baseline", hook_event_name="UserPromptSubmit")
+        # Try to edit using path traversal
+        result = self.hook("guard", hook_event_name="PreToolUse", tool_name="Edit",
+                           tool_input={"file_path": str(self.project / "src" / ".." / "etc" / "passwd")})
+        self.assertEqual(result["hookSpecificOutput"]["permissionDecision"], "deny")
+
+    def test_non_git_snapshot_performance_not_degraded(self):
+        """Non-git snapshot should complete in reasonable time for large dirs."""
+        import importlib.util
+        import time
+        spec = importlib.util.spec_from_file_location("hook", HOOK)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        # Create 1000 small files
+        for i in range(1000):
+            (self.project / f"file_{i}.txt").write_text(f"content {i}")
+        start = time.monotonic()
+        snap = module.snapshot(self.project)
+        elapsed = time.monotonic() - start
+        self.assertIsNotNone(snap)
+        # Snapshot includes test infrastructure files (check.py, value.txt), so >= 1000
+        self.assertGreaterEqual(len(snap["files"]), 1000)
+        # Should complete in under 2 seconds (generous CI margin)
+        self.assertLess(elapsed, 2.0, f"Snapshot took {elapsed:.2f}s, expected < 2s")
 
 
 if __name__ == "__main__":

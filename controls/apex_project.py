@@ -4,8 +4,9 @@
 The folder must be the one the Claude Code session is opened in: hooks look for `.apex`
 in the session folder and its parents, never in subfolders. The tool makes that folder a
 git repository (or requires it to be the root of an existing one), writes the three Apex
-settings, adds ignore rules, records a baseline commit, and runs the verify command once
-so a meaningless check is noticed immediately.
+settings and adds ignore rules. It records a baseline commit only when it creates the
+repository; existing repositories keep their index, commits, and user changes untouched.
+The verify command runs once so a meaningless check is noticed immediately.
 
 Only the project's own rules live in `.apex`; the hooks, reviewer and guides stay in this
 checkout. `.apex/apex.json` points back here and records the format of the rules, so
@@ -91,10 +92,11 @@ def init(root: str, allow: Sequence[str], verify: str, timeout: int, review: boo
     if review:
         (apex / "review.json").write_text("{}\n", encoding="utf-8")
     write_manifest(project)
-    git(project, "add", "-A")
-    identity = [] if git(project, "config", "user.email", check=False).stdout.strip() else \
-        ["-c", "user.name=Apex", "-c", "user.email=apex@localhost"]
-    git(project, *identity, "commit", "-q", "--allow-empty", "-m", "Apex baseline: controls enabled")
+    if created:
+        git(project, "add", "-A")
+        identity = [] if git(project, "config", "user.email", check=False).stdout.strip() else \
+            ["-c", "user.name=Apex", "-c", "user.email=apex@localhost"]
+        git(project, *identity, "commit", "-q", "--allow-empty", "-m", "Apex baseline: controls enabled")
     # The verify command is the project's own shell command, supplied by the user.
     check = subprocess.run(verify, shell=True, cwd=project, capture_output=True, text=True,  # noqa: S602
                            timeout=timeout, check=False)

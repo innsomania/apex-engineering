@@ -15,6 +15,7 @@ One engineering workflow (`SKILL.md` and `guides/`) plus runtime controls for Cl
 - Agents: `controls/claude-code/agents/*.md`, `controls/codex/agents/*.toml` (same instructions; a test keeps them equal).
 - `install.py`: links skill, writes hooks, copies Codex agents (`configure()`, `merge_hooks()`).
 - `run_apex.py`: starts a host session with the Apex prompt.
+- `controls/apex_worker.py`: runs one approved task and writes a result JSON; default `--engine claude` = Sonnet 5.5 medium for every role (`CLAUDE_ROLES`; never Opus). Codex (`ROLES`: heavy/focused/ui/light) only with `--engine codex`, or `--engine auto` which reruns on Claude after a Codex usage limit.
 - `tests/`: unittest suites (`tests/test_*.py`) and live/mutation runners (`tests/run_*.py`).
 
 ## Checks

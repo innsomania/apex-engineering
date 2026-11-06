@@ -43,10 +43,56 @@ class ApexProjectTests(unittest.TestCase):
         self.assertIn("store/src/page.tsx", tracked)
         self.assertNotIn("row/index.html", tracked)
 
+    def test_init_preserves_existing_repository_changes(self):
+        self.git("init", "-q")
+        self.git("add", "store/src/page.tsx", "row/index.html")
+        self.git("-c", "user.name=test", "-c", "user.email=test@example.com", "commit", "-qm", "base")
+        page = self.root / "store/src/page.tsx"
+        page.write_text("staged user change\n")
+        self.git("add", "store/src/page.tsx")
+        page.write_text("later unstaged user change\n")
+        untracked = self.root / "personal.txt"
+        untracked.write_text("keep this file\n")
+        (self.root / ".gitignore").write_text("existing-ignore/\n")
+        head_before = self.git("rev-parse", "HEAD")
+        index_before = self.git("diff", "--cached", "--binary")
+        result = project.init(self.root, ["store/src/"], "true", 60, True, ["row/"])
+
+        self.assertFalse(result["git_initialized"])
+        self.assertEqual(result["verify_exit_code"], 0)
+        self.assertEqual(self.git("rev-parse", "HEAD"), head_before)
+        self.assertEqual(self.git("diff", "--cached", "--binary"), index_before)
+        self.assertEqual(page.read_text(), "later unstaged user change\n")
+        self.assertEqual(untracked.read_text(), "keep this file\n")
+        self.assertEqual(self.git("diff", "--cached", "--name-only"), "store/src/page.tsx\n")
+        self.assertTrue((self.root / ".apex/verify.json").is_file())
+        self.assertIn("existing-ignore/", (self.root / ".gitignore").read_text())
+        self.assertIn("row/", (self.root / ".gitignore").read_text())
+        self.assertIn(".apex/", self.git("status", "--porcelain"))
+
+    def test_init_preserves_an_existing_unborn_repository_index(self):
+        self.git("init", "-q")
+        self.git("add", "store/src/page.tsx")
+        staged_before = self.git("diff", "--cached", "--binary")
+        result = project.init(self.root, ["store/src/"], "true", 60, False, [])
+
+        self.assertFalse(result["git_initialized"])
+        self.assertEqual(self.git("diff", "--cached", "--binary"), staged_before)
+        self.assertFalse((self.root / ".apex/review.json").exists())
+        self.assertTrue((self.root / ".apex/apex.json").is_file())
+        self.assertIn(".apex/", self.git("status", "--porcelain"))
+
     def test_failing_verify_is_reported(self):
-        result = project.init(self.root, ["store/src/"], "exit 3", 60, False, [])
+        result = project.init(self.root, ["store/src/"], f"{sys.executable} -c 'import sys; sys.exit(3)'", 60, False, [])
         self.assertEqual(result["verify_exit_code"], 3)
         self.assertFalse((self.root / ".apex/review.json").exists())
+
+    def test_verify_runs_in_a_shell_and_reports_its_exit_code(self):
+        for verify, code in (("true && false", 1), ("FOO=1 true", 0), ("apex-no-such-command-xyz", 127)):
+            with self.subTest(verify=verify):
+                root = Path(tempfile.mkdtemp(dir=self.temp.name))
+                result = project.init(root, ["src/"], verify, 60, False, [])
+                self.assertEqual(result["verify_exit_code"], code)
 
     def test_refuses_subfolder_of_another_repository_and_existing_settings(self):
         project.init(self.root, ["store/src/"], "true", 60, True, [])

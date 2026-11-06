@@ -198,10 +198,13 @@ class InstallationTests(unittest.TestCase):
         message = installer.configure(self.home, "install", "codex")
         self.assertIn("/hooks", message)
         hooks = json.loads((self.home / "hooks.json").read_text())["hooks"]
-        self.assertEqual(set(hooks), {"UserPromptSubmit", "Stop", "SubagentStop", "PreToolUse"})
+        self.assertEqual(set(hooks), {"UserPromptSubmit", "Stop", "SubagentStop", "PreToolUse", "PostToolUse"})
         guard = hooks["PreToolUse"][-1]
         self.assertEqual(guard["matcher"], "apply_patch")
         self.assertTrue(guard["hooks"][0]["command"].endswith(" guard codex"))
+        unlock = hooks["PostToolUse"][-1]
+        self.assertEqual(unlock["matcher"], "ExitPlanMode")
+        self.assertTrue(unlock["hooks"][0]["command"].endswith(" unlock codex"))
         for name in ("apex-reviewer.toml", "apex-coding.toml"):
             agent = self.home / "agents" / name
             # Codex refuses to spawn a symlinked agent file, so the installer writes a real copy.
