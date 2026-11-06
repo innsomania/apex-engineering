@@ -4,7 +4,19 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 MAP = ROOT / "AGENTS.md"
-SOURCES = [ROOT / "controls" / "claude-code" / "hooks" / "apex_verify_hook.py", ROOT / "install.py"]
+SOURCES = [ROOT / "controls" / "claude-code" / "hooks" / "apex_verify_hook.py", ROOT / "install.py",
+           ROOT / "controls" / "apex_worker.py",
+           # Modular package files
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "classify.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "snapshot.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "state.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "review.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "guard.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "baseline.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "stop.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "main.py",
+           ROOT / "controls" / "claude-code" / "hooks" / "apex_verify" / "types.py",
+]
 
 
 class ProjectMapTests(unittest.TestCase):
@@ -30,7 +42,7 @@ class ProjectMapTests(unittest.TestCase):
         for name in re.findall(r"`(\w+)\(\)`", MAP.read_text()):
             self.assertIn(f"def {name}(", code, name)
         for name in re.findall(r"`([A-Z][A-Z_]+)`", MAP.read_text()):
-            self.assertIn(f"\n{name} = ", code, name)
+            self.assertRegex(code, rf"\n{name}(: [^=\n]+)? = ", name)
 
 
 if __name__ == "__main__":

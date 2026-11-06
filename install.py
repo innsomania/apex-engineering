@@ -68,7 +68,7 @@ HOSTS: dict[str, dict[str, Any]] = {
 
 
 HOOK_SCRIPT = CLAUDE_CODE / "hooks" / "apex_verify_hook.py"
-# (event, matcher, mode, timeout) per host. Codex reports every file edit as apply_patch and has no plan tool.
+# (event, matcher, mode, timeout) per host. Codex reports every file edit as apply_patch.
 HOOKS: dict[str, tuple[tuple[str, str | None, str, int], ...]] = {
     "claude": (("UserPromptSubmit", None, "baseline", 60),
                ("Stop", None, "stop", 900),
@@ -78,7 +78,8 @@ HOOKS: dict[str, tuple[tuple[str, str | None, str, int], ...]] = {
     "codex": (("UserPromptSubmit", None, "baseline", 60),
               ("Stop", None, "stop", 900),
               ("SubagentStop", None, "stop", 900),
-              ("PreToolUse", "apply_patch", "guard", 10)),
+              ("PreToolUse", "apply_patch", "guard", 10),
+              ("PostToolUse", "ExitPlanMode", "unlock", 10)),
 }
 
 

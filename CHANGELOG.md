@@ -6,7 +6,36 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Security
+
+- Scope patterns containing `**` or `..` are rejected when `.apex/scope.json`
+  is loaded, so a pattern cannot reach outside the project. Tests cover both
+  patterns, a symlink that escapes the scope, and a `src/../` relative path.
+- The prompt history the hook keeps is bounded: at most 50 prompts and 20,000
+  characters each.
+
 ### Changed
+
+- `apex_worker.py` now defaults to `--engine claude`: Sonnet 5.5 medium for every
+  role, including `light` (no Haiku). Codex runs only with `--engine codex` or
+  `--engine auto`. Opus is never a worker.
+- The hook is split from one 862-line file into the `apex_verify` package
+  (`classify`, `snapshot`, `state`, `review`, `guard`, `baseline`, `stop`,
+  `main`, `output`, `types`). `apex_verify_hook.py` stays the entry point and
+  re-exports the same names. The hook's single JSON output and the host name
+  now live in `apex_verify/output.py`.
+- The review gate stays blocked after the third review request: the fourth
+  and later Stop events still return `decision: block` with the delegation
+  instructions, and `pending_review` stays set so a reviewer verdict that
+  arrives late is still recorded. Before, the turn was released with a notice.
+- After a passing verify command, the tree is fingerprinted again before the
+  review is requested, so files the command itself writes (such as
+  `__pycache__`) do not make the reviewer's verdict look expired.
+- `denial_reason` is named `refusal`, as the project map in `AGENTS.md` says.
+- `tests/run_mutation_check.py` copies the whole hook package and applies each
+  mutation to the module that holds it.
+- The Codex unlock hook (`PostToolUse` / `ExitPlanMode`) is installed, so plan
+  approval lifts the turn lock on Codex.
 
 - The repository is cut down to its core: the three project controls, the
   guides, and what proves them. The layout is now `guides/`, `controls/`,
@@ -57,6 +86,11 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The loaded tree is 31 files and 14,340 words, down from 35 and 17,734.
 
 ### Added
+- Tests: 6 for the hook (scope `**` and `..`, symlink escape, relative-path
+  traversal, non-git snapshot speed), and regressions for the verify command
+  running in a shell (`true && false` blocks, `FOO=1 true` passes, a missing
+  command blocks) in the hook and in `apex_project.py init`, and for the
+  fourth and later review requests staying blocked.
 - CI now actually runs. The first run passed all ten jobs, which verified Linux
   for the first time: the suite and the live check on Ubuntu and macOS across
   Python 3.11 to 3.14, plus lint, types, and the mutation check.
@@ -98,6 +132,15 @@ follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   configuration naming a personal vault note.
 
 ### Fixed
+- The verify command runs through a shell again, as documented: it is the
+  project's own command, written by the user in `.apex/verify.json` (guarded
+  against edits) or passed with `--verify`. A branch change had split it into
+  arguments, so `a && b` passed when `b` failed, and `FOO=1 cmd` or a missing
+  command raised `FileNotFoundError`. A command that cannot start now blocks
+  as a failed verification, and the timeout still applies.
+- `test_timeout_retains_stderr_diagnostic` failed in the full suite because
+  its 0.05 s timeout fired before a loaded machine had started the child
+  process; the timeout is now 3 s.
 - The coding bridge reported a started session as a startup failure when its
   first Codex turn failed before the first status poll. A turn that fails at
   once also sets the phase to `failed`, and the handshake read the phase alone,

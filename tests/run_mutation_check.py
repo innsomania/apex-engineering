@@ -23,7 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from run_live_control_check import redact  # a sibling script, not a package
 
 ROOT = Path(__file__).resolve().parents[1]
-HOOK_REL = Path("controls") / "claude-code" / "hooks" / "apex_verify_hook.py"
+HOOK_DIR = Path("controls") / "claude-code" / "hooks"
+HOOK_REL = HOOK_DIR / "apex_verify_hook.py"
+PACKAGE_REL = HOOK_DIR / "apex_verify"
 
 # Each mutation disables one gate. `expect_step` names an observation in the
 # live check that must then fail; it is the claim this mutation tests.
@@ -46,20 +48,22 @@ MUTATIONS: list[dict[str, str]] = [
     {
         "gate": "verify",
         "expect_step": "a failing verify blocks the stop and counts the attempt",
-        "old": "    if code == 0:\n        finish(root, path, state, current, event)\n        return",
-        "new": "    if True:\n        finish(root, path, state, current, event)\n        return",
+        "old": "    if code == 0:\n",
+        "new": "    if True:\n",
     },
     {
         "gate": "review (is it demanded)",
         "expect_step": "a passing verify still requires the independent review",
-        "old": "    if not (root / REVIEW).is_file() or "
-               "(current is not None and state.get(\"reviewed\") == current):\n        return True",
-        "new": "    if True:\n        return True",
+        "old": "    if (not (root / REVIEW).is_file() or\n"
+               "            (state.get(\"reviewed\") == current and state.get(\"reviewed_snapshot\") == current_snapshot\n"
+               "             and state.get(\"reviewed_prompts\") == prompt_digest)):\n        return True",
+        "new": "    return True",
     },
     {
         "gate": "review (does a FAIL verdict block)",
         "expect_step": "a failing review blocks the stop and reports the finding",
-        "old": "    if current is not None and state.get(\"review_failed\") == current:",
+        "old": "    if (state.get(\"review_failed\") == current and\n"
+               "            state.get(\"review_failed_snapshot\") == current_snapshot):",
         "new": "    if False and state.get(\"review_failed\") == current:",
     },
     {
@@ -81,8 +85,8 @@ MUTATIONS: list[dict[str, str]] = [
         "new": "pass",
     },
     {
-        "gate": "question lock",
-        "expect_step": "edits are locked for a question turn",
+        "gate": "stop lock",
+        "expect_step": "edits are locked for a stop turn",
         "old": "    if lock and not claude_own_file(path):",
         "new": "    if False and not claude_own_file(path):",
     },
@@ -90,12 +94,14 @@ MUTATIONS: list[dict[str, str]] = [
 
 
 def copy_tree(destination: Path) -> None:
-    """The live check only needs the hook, the project CLI and itself."""
+    """The live check only needs the hook (script and package), the project CLI and itself."""
     for relative in (HOOK_REL, Path("controls") / "apex_project.py",
                      Path("tests") / "run_live_control_check.py"):
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ROOT / relative, target)
+    shutil.copytree(ROOT / PACKAGE_REL, destination / PACKAGE_REL,
+                    ignore=shutil.ignore_patterns("__pycache__"))
 
 
 def run_live_check(tree: Path) -> tuple[bool, list[str]]:
@@ -120,7 +126,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"{args.output} already exists; choose a new path.", file=sys.stderr)
         return 2
 
-    source = (ROOT / HOOK_REL).read_text(encoding="utf-8")
+    sources = {path: path.read_text(encoding="utf-8") for path in sorted((ROOT / PACKAGE_REL).glob("*.py"))}
     results: list[dict[str, object]] = []
 
     print("0. Saglam hook: canli kontrol gecmeli")
@@ -138,15 +144,16 @@ def main(argv: list[str] | None = None) -> int:
 
     for index, mutation in enumerate(MUTATIONS, 1):
         print(f"\n{index}. {mutation['gate']} sabote edildi")
-        if mutation["old"] not in source:
+        target = next((path for path, text in sources.items() if mutation["old"] in text), None)
+        if target is None:
             print("  FAIL  mutasyon uygulanamadi: hedef kod bulunamadi (hook degismis olabilir)")
             results.append({"mutation": mutation["gate"], "applied": False, "verdict": False})
             continue
         with tempfile.TemporaryDirectory(prefix="apex-mut-") as temp:
             tree = Path(temp)
             copy_tree(tree)
-            (tree / HOOK_REL).write_text(
-                source.replace(mutation["old"], mutation["new"], 1), encoding="utf-8")
+            (tree / PACKAGE_REL / target.name).write_text(
+                sources[target].replace(mutation["old"], mutation["new"], 1), encoding="utf-8")
             passed, failed = run_live_check(tree)
         caught = mutation["expect_step"] in failed
         print(f"  {'PASS' if caught else 'FAIL'}  canli kontrol bunu yakalamali: "

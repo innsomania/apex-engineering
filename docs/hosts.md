@@ -23,7 +23,8 @@ Scope is enforced in two layers. A pre-edit guard refuses a write outside
 still write anywhere; Codex workers often edit through `exec_command`. The Stop
 and SubagentStop check compares the whole tree with the turn's start, so any
 out-of-scope change, however it was made, keeps the turn or worker from
-finishing until it is reverted or the user approves it.
+finishing until it can be corrected safely or the user approves it. Preserve
+pre-existing user edits; do not restore files from Git automatically.
 
 ## Execution contract
 

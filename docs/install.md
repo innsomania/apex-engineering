@@ -58,6 +58,12 @@ frontmatter. To make the main session a planner, choose its model and effort in
 your own settings (for example Opus with low effort). Then tell it in your own
 part of `CLAUDE.md`, outside the Apex block, when to delegate.
 
+`controls/apex_worker.py` runs one approved task. By default (`--engine claude`)
+every role, including `light`, runs on Claude Code with Sonnet 5.5 at medium
+effort. Opus is never a worker. `--engine codex` runs Codex only and never falls
+back; `--engine auto` runs Codex and reruns the task on Sonnet 5.5 medium if
+Codex reports that its usage limit is hit.
+
 ## OpenCode and other hosts
 
 See [host support](hosts.md) for capabilities and limitations.
@@ -95,9 +101,12 @@ only you edit:
 | --- | --- |
 | `.apex/verify.json` — `{"command": "npm test", "timeout": 600}` | A turn (or `apex-coding` run) that changed files cannot end until the command passes. After 3 failed attempts Claude stops and reports that the work is not done. |
 | `.apex/scope.json` — `{"allow": ["src/", "tests/*.py"]}` | Edits outside the approved files are refused immediately. Any change outside them found through git at the end of a turn — including shell edits, commits, and renames out of the scope — blocks the stop until it is reverted or you approve it. Files your `.gitignore` excludes are not seen. |
-| `.apex/review.json` — `{}` | A turn that changed files cannot end until the independent `apex-reviewer` subagent has compared that working tree against your verbatim messages, recorded by the hook rather than relayed by the main agent, and reported `APEX-REVIEW: PASS`. |
+| `.apex/review.json` — `{}` | A turn that changed files cannot end until the independent `apex-reviewer` subagent has compared the exact requested tree and complete user message history, recorded by the hook rather than relayed by the main agent, and reported `APEX-REVIEW: PASS`. A changed tree or new user instruction requires a fresh review. Non-Git projects use a bounded project file snapshot. |
 
-Create them with the project CLI rather than by hand:
+Create them with the project CLI rather than by hand. For a new folder, Apex
+creates the Git repository and baseline commit. In an existing repository it
+leaves commits and the index untouched, so stage and commit the new controls
+yourself when ready:
 
 ```sh
 python3 controls/apex_project.py init --root <project> \
@@ -119,8 +128,9 @@ Ignore dependency and build output (`node_modules/`, `.next/`, `dist/`,
 `*.tsbuildinfo`) and any read-only reference folder that is its own git
 repository. The controls must live in the folder the session is opened in: the
 hooks look there and in its parents, never in subfolders. A turn in which any of the
-three files was rewritten, created, or deleted from a shell cannot end; restore it
-(`git checkout -- .apex`) or make the change yourself between turns.
+three files was rewritten, created, or deleted from a shell cannot end. Do not
+discard or restore files automatically; preserve existing user changes and make
+control changes yourself between turns.
 
 ## Host sandbox
 

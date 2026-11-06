@@ -226,6 +226,14 @@ def run(base: Path) -> dict[str, Any]:
                                "drops None handling"))
 
     print("\n7. review: PASS verdikten sonra tur bitebilir")
+    h.hook("baseline", prompt="Keep the verified implementation and finish the requested change.")
+    (h.project / "src" / "calc.py").write_text(
+        "def total(items):\n"
+        '    """Sum the items, ignoring None and negatives."""\n'
+        "    return sum(item for item in items if item and item > 0) + 0\n")
+    h.expect_blocked("a revised request requires a fresh review",
+                     h.hook("stop", hook_event_name="Stop"),
+                     contains=("apex-reviewer", "Instructions file:"))
     h.hook("stop", hook_event_name="SubagentStop", agent_type="apex-reviewer",
            agent_transcript_path=h.reviewer_transcript("PASS", "Matches the request."))
     h.expect_turn_may_end("a passing review lets the turn end",
@@ -240,9 +248,9 @@ def run(base: Path) -> dict[str, Any]:
                      contains=("outside the approved scope", "ESCAPED.md"))
     (h.project / "ESCAPED.md").unlink()
 
-    print("\n9. soru kilidi: soru soran turda dosya duzenlenemez")
-    h.hook("baseline", prompt="Bu fonksiyon neden None'i atliyor?")
-    h.expect_denied("edits are locked for a question turn",
+    print("\n9. dur kilidi: dur denen turda dosya duzenlenemez")
+    h.hook("baseline", prompt="dur")
+    h.expect_denied("edits are locked for a stop turn",
                     h.hook("guard", tool_input={"file_path": "src/calc.py"}),
                     contains="blocked for this turn")
     h.hook("baseline", prompt="Now make that change.")
